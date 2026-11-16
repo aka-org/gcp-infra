@@ -9,12 +9,15 @@ Google Cloud infrastructure for aka-org's projects, as Terraform, laid out `<pro
 <project>/<environment>/<region>/<stage>/   what runs in one region: one Terraform root per stage, its state under its own prefix
 
 pokechamps/prod/bootstrap/                  the project pokechamps-prod-<suffix>
-pokechamps/prod/eu/                         production's europe-west1 stages
+pokechamps/prod/shared/                     what production's regions share: network, image registry, data bucket, service accounts, the secret entry
+pokechamps/prod/eu/cluster/                 production's GKE Autopilot cluster in europe-west1
 ```
 
 An environment is named by its role (`prod`, `dev`) and lives in a Google Cloud project of its own, created by its `bootstrap` stage: the project is the boundary for access, billing and mistakes. A project is not tied to a region, so an environment that runs in two regions keeps both in the one project, each in its own folder. Another environment is another folder and another project, sharing nothing.
 
 **Bootstrap** stages create what CI needs before it can run, so a person applies them once from a workstation with `tools/bootstrap <project>/<environment>` (its header lists what to set first). The other stages are applied by CI as the service account the bootstrap made.
+
+**Every other stage goes through `.github/workflows/terraform.yml`**: a pull request plans each stage (the plan is in the run's log) and a merge to `main` applies them in order, after the `prod` environment's reviewer approves the run. A pull request's run acts as a read-only account; only runs for `main` can act as Terraform's own service account.
 
 **No secret is kept in Terraform state or in this repository**: providers authenticate from the environment, the billing account id and similar values arrive as `TF_VAR_*` variables, and secret values are added to Secret Manager by hand.
 
