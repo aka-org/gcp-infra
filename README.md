@@ -5,11 +5,14 @@ Google Cloud infrastructure for aka-org's projects, as Terraform, laid out `<pro
 ## Layout
 
 ```
-<project>/<environment>/<stage>/     one Terraform root per stage, its state under its own prefix
-pokechamps/eu/bootstrap/             the environment's project, Terraform's service account, state bucket, Actions identity
+<project>/<environment>/bootstrap/          the environment's Google Cloud project, Terraform's service account, state bucket, Actions identity
+<project>/<environment>/<region>/<stage>/   what runs in one region: one Terraform root per stage, its state under its own prefix
+
+pokechamps/prod/bootstrap/                  the project pokechamps-prod-<suffix>
+pokechamps/prod/eu/                         production's europe-west1 stages
 ```
 
-Each environment lives in a Google Cloud project of its own, created by its `bootstrap` stage; another environment is another folder and another project, sharing nothing.
+An environment is named by its role (`prod`, `dev`) and lives in a Google Cloud project of its own, created by its `bootstrap` stage: the project is the boundary for access, billing and mistakes. A project is not tied to a region, so an environment that runs in two regions keeps both in the one project, each in its own folder. Another environment is another folder and another project, sharing nothing.
 
 **Bootstrap** stages create what CI needs before it can run, so a person applies them once from a workstation with `tools/bootstrap <project>/<environment>` (its header lists what to set first). The other stages are applied by CI as the service account the bootstrap made.
 
@@ -19,7 +22,7 @@ Each environment lives in a Google Cloud project of its own, created by its `boo
 
 | Script | What it does |
 |---|---|
-| `tools/bootstrap` | Applies an environment's bootstrap stage from a workstation and moves its state into the bucket it created (`tools/bootstrap pokechamps/eu`). |
+| `tools/bootstrap` | Applies an environment's bootstrap stage from a workstation and moves its state into the bucket it created (`tools/bootstrap pokechamps/prod`). |
 | `tools/ghpr` | Pushes the current work branch of a checkout and opens its pull request as the `aka-org-automation` GitHub App (`ghpr open DIR --title ...`), or lists the branch's check runs (`ghpr checks DIR`). Never pushes a default branch, merges, tags or force-pushes. Its docstring covers the App's settings file and permissions. |
 
 ## Shared workflows

@@ -1,11 +1,13 @@
-# The foundation of pokechamps' `eu` environment: its own Google Cloud
+# The foundation of pokechamps' `prod` environment: its own Google Cloud
 # project, the service account Terraform runs as, the bucket every stage
 # of the environment keeps its state in, and the link that lets this
 # repository's GitHub Actions act as that service account without a key.
+# The project is not tied to a region: what runs in one region lives in
+# that region's folder beside this one (eu/).
 #
 # Applied once from a workstation by a person (tools/bootstrap), because
-# it creates what CI needs in order to run; the stages beside it
-# (cluster/, platform/) are applied by CI.
+# it creates what CI needs in order to run; the other stages are applied
+# by CI.
 
 terraform {
   required_version = ">= 1.11.4"
@@ -34,11 +36,11 @@ module "project" {
   version = "1.3.1"
 
   # The project id is this name plus a random suffix.
-  project_name       = "pokechamps-eu"
+  project_name       = "pokechamps-prod"
   billing_account_id = var.billing_account_id
   project_labels = {
     project     = "pokechamps"
-    environment = "eu"
+    environment = "prod"
   }
 
   # Leave roles/editor as Google grants it: its members include the Google
@@ -58,12 +60,13 @@ module "project" {
   ]
 
   # Terraform state of every stage of this environment, one prefix each.
-  bucket_name_prefix = "pokechamps-eu-tfstate"
+  # The bucket's own location; the environment's regions are unrelated to it.
+  bucket_name_prefix = "pokechamps-prod-tfstate"
   bucket_location    = "europe-west1"
   # tools/bootstrap writes backend.tf itself, with the stage's prefix.
   gcs_backend = false
 
-  # The service account the cluster/ and platform/ stages are applied as,
+  # The service account the environment's other stages are applied as,
   # on top of the module's own roles (IAM, service accounts, APIs, the
   # state bucket, identity pools).
   sa_roles = [
