@@ -5,8 +5,9 @@ name: Release from the changelog
 # tag vX.Y.Z on the commit the workflow runs for and creates a GitHub
 # release whose notes are that changelog section. Each half is skipped
 # when it exists, so a tag pushed by hand still gets its release. A
-# changelog whose newest version is already released changes nothing;
-# changes not yet released go under a "## Unreleased" heading.
+# changelog whose newest version is already released, or that names no
+# version yet, changes nothing; changes not yet released go under a
+# "## Unreleased" heading.
 #
 # Called from a workflow that runs on pushes to the default branch, after
 # its checks:
@@ -36,8 +37,9 @@ jobs:
 
           version=$(grep -m1 -oE '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | cut -d' ' -f2 || true)
           if [ -z "$version" ]; then
-            echo "CHANGELOG.md has no '## X.Y.Z' heading" >&2
-            exit 1
+            # A changelog with only "## Unreleased" so far: no version to release.
+            echo "CHANGELOG.md names no version yet: nothing to release"
+            exit 0
           fi
           tag="v$version"
 
