@@ -2,7 +2,7 @@
 # Applies an environment's bootstrap stage from a workstation, once, then
 # moves its state into the bucket it created.
 #
-#   tools/bootstrap pokechamps/eu
+#   tools/bootstrap pokechamps/prod
 #
 # A bootstrap stage (<project>/<environment>/bootstrap/) creates the
 # environment's project, Terraform's service account, the state bucket and
