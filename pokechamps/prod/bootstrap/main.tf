@@ -33,7 +33,7 @@ provider "google" {}
 
 module "project" {
   source  = "aka-org/project/google"
-  version = "1.3.1"
+  version = "1.4.0"
 
   # The project id is this name plus a random suffix.
   project_name       = "pokechamps-prod"
@@ -84,4 +84,11 @@ module "project" {
   gha_wif_enabled   = true
   gha_owner_id      = var.github_owner_id
   gha_allowed_repos = ["aka-org/gcp-infra"]
+
+  # A pull request's workflow runs the pull request's own workflow file,
+  # before review: only workflows running for main may act as Terraform's
+  # service account, and pull requests plan as a second account that can
+  # read the project and the state but change nothing.
+  gha_sa_refs    = ["refs/heads/main"]
+  gha_plan_sa_id = "terraform-plan"
 }
