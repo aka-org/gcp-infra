@@ -37,6 +37,12 @@ env:
   STAGES: >-
     pokechamps/prod/shared
     pokechamps/prod/eu/cluster
+    pokechamps/prod/eu/platform
+  # Stages a pull request only validates, without a plan: planning a Helm
+  # release reads the release's record, a Kubernetes Secret, and the
+  # read-only plan account is not given access to Secrets in the cluster.
+  VALIDATE_ONLY: >-
+    pokechamps/prod/eu/platform
   TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
   TF_IN_AUTOMATION: "1"
 
@@ -67,7 +73,10 @@ jobs:
             echo "::group::$stage"
             terraform -chdir="$stage" init -input=false
             terraform -chdir="$stage" validate
-            terraform -chdir="$stage" plan -input=false -lock=false
+            case " $VALIDATE_ONLY " in
+              *" $stage "*) echo "validated only: its plan is shown by the apply job, in the run for main" ;;
+              *) terraform -chdir="$stage" plan -input=false -lock=false ;;
+            esac
             echo "::endgroup::"
           done
 
@@ -90,6 +99,10 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      # The Helm provider gets its cluster token from this plugin.
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
       - name: Apply every stage, in order
         run: |
           set -euo pipefail

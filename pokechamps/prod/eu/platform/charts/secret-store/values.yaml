@@ -1,0 +1,2 @@
+# The Google Cloud project whose Secret Manager the store reads.
+projectId: ""
