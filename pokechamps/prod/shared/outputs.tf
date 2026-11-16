@@ -32,3 +32,8 @@ output "cloudbuild_service_account" {
   description = "Email of the service account Cloud Build runs as"
   value       = google_service_account.cloudbuild.email
 }
+
+output "web_address" {
+  description = "The site's public IP address"
+  value       = google_compute_global_address.web.address
+}

@@ -150,6 +150,15 @@ resource "google_secret_manager_secret" "s3" {
   }
 }
 
+# The site's public address: reserved here so it outlives the load
+# balancer, which the app's Ingress creates and names this address in
+# (`kubernetes.io/ingress.global-static-ip-name`). Global, so a second
+# region's cluster can later sit behind the same address.
+resource "google_compute_global_address" "web" {
+  project = var.project_id
+  name    = "pokechamps-web"
+}
+
 # What Cloud Build runs as: pushes images, deploys the Helm releases.
 resource "google_service_account" "cloudbuild" {
   project      = var.project_id
