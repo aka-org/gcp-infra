@@ -31,7 +31,7 @@ provider "google" {}
 
 module "project" {
   source  = "aka-org/project/google"
-  version = "1.3.0"
+  version = "1.3.1"
 
   # The project id is this name plus a random suffix.
   project_name       = "pokechamps-eu"
@@ -40,6 +40,11 @@ module "project" {
     project     = "pokechamps"
     environment = "eu"
   }
+
+  # Leave roles/editor as Google grants it: its members include the Google
+  # APIs Service Agent, which creates the VMs of managed instance groups,
+  # GKE's nodes among them.
+  remove_editor_members = false
 
   # What the environment's other stages use.
   enable_apis = [
