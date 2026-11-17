@@ -48,10 +48,13 @@ BACKEND
   echo "State moved to gs://$bucket/bootstrap. Commit $environment/bootstrap/backend.tf."
 fi
 
+# The variables are named after the environment (pokechamps/prod ->
+# PROD_...), since each has a project and accounts of its own.
+prefix=$(basename "$environment" | tr '[:lower:]-' '[:upper:]_')
 echo
 echo "Set these as Actions variables of the infra repository:"
-echo "  GCP_PROJECT_ID=$(terraform output -raw project_id)"
-echo "  GCP_SERVICE_ACCOUNT=$(terraform output -raw terraform_service_account)"
-echo "  GCP_PLAN_SERVICE_ACCOUNT=$(terraform output -raw plan_service_account)"
-echo "  GCP_WORKLOAD_IDENTITY_PROVIDER=$(terraform output -raw workload_identity_provider)"
-echo "  TF_STATE_BUCKET=$(terraform output -raw state_bucket)"
+echo "  ${prefix}_GCP_PROJECT_ID=$(terraform output -raw project_id)"
+echo "  ${prefix}_GCP_SERVICE_ACCOUNT=$(terraform output -raw terraform_service_account)"
+echo "  ${prefix}_GCP_PLAN_SERVICE_ACCOUNT=$(terraform output -raw plan_service_account)"
+echo "  ${prefix}_GCP_WORKLOAD_IDENTITY_PROVIDER=$(terraform output -raw workload_identity_provider)"
+echo "  ${prefix}_TF_STATE_BUCKET=$(terraform output -raw state_bucket)"
