@@ -1,7 +1,9 @@
 # What production's regions share, inside the one `prod` project: the
-# network (a subnet and a NAT gateway per region), the image registry,
-# the public data bucket, the app's and Cloud Build's service accounts,
-# and the empty Secret Manager entry for the app's storage key.
+# network (a subnet and a NAT gateway per region), the public data
+# bucket, the site's address, the app's service account, the empty Secret
+# Manager entry for its storage key, and the build project's permission
+# to deploy here. Images are not kept here: they come from the `build`
+# project's registry (../../build/pipeline).
 #
 # Applied by CI as Terraform's service account, before any region's
 # stages. Adding a region is a new subnet and NAT entry here, then that
@@ -56,32 +58,6 @@ module "network" {
     region     = local.region_eu
     log_errors = true
   }]
-}
-
-# The container images Cloud Build pushes and the clusters pull.
-resource "google_artifact_registry_repository" "images" {
-  project       = var.project_id
-  location      = local.region_eu
-  repository_id = "pokechamps"
-  format        = "DOCKER"
-  description   = "pokechamps container images"
-
-  # Every push to main adds five images: keep each image's newest ten
-  # versions, drop the rest once a month old.
-  cleanup_policies {
-    id     = "keep-newest"
-    action = "KEEP"
-    most_recent_versions {
-      keep_count = 10
-    }
-  }
-  cleanup_policies {
-    id     = "delete-old"
-    action = "DELETE"
-    condition {
-      older_than = "2592000s"
-    }
-  }
 }
 
 # The files the jobs publish and the site reads: the data "CDN". Public
@@ -159,30 +135,11 @@ resource "google_compute_global_address" "web" {
   name    = "pokechamps-web"
 }
 
-# What Cloud Build runs as: pushes images, deploys the Helm releases.
-resource "google_service_account" "cloudbuild" {
-  project      = var.project_id
-  account_id   = "cloudbuild-deploy"
-  display_name = "Cloud Build: builds and deploys pokechamps"
-}
-
-resource "google_artifact_registry_repository_iam_member" "cloudbuild_push" {
-  project    = var.project_id
-  location   = google_artifact_registry_repository.images.location
-  repository = google_artifact_registry_repository.images.name
-  role       = "roles/artifactregistry.writer"
-  member     = "serviceAccount:${google_service_account.cloudbuild.email}"
-}
-
-resource "google_project_iam_member" "cloudbuild" {
-  for_each = toset([
-    # Connect to the clusters and manage workloads in them.
-    "roles/container.developer",
-    # Write its build logs.
-    "roles/logging.logWriter",
-  ])
-
+# Cloud Build runs in the `build` project as its own service account
+# (../../build/pipeline); here it may connect to the clusters and manage
+# workloads in them, which is how a release is deployed.
+resource "google_project_iam_member" "cloudbuild_deploy" {
   project = var.project_id
-  role    = each.value
-  member  = "serviceAccount:${google_service_account.cloudbuild.email}"
+  role    = "roles/container.developer"
+  member  = "serviceAccount:cloudbuild-deploy@${var.build_project_id}.iam.gserviceaccount.com"
 }

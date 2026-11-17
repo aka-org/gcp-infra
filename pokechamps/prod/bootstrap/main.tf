@@ -52,9 +52,7 @@ module "project" {
   enable_apis = [
     "compute.googleapis.com",
     "container.googleapis.com",
-    "artifactregistry.googleapis.com",
     "secretmanager.googleapis.com",
-    "cloudbuild.googleapis.com",
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
   ]
@@ -73,10 +71,7 @@ module "project" {
     "roles/compute.networkAdmin",
     "roles/compute.securityAdmin",
     "roles/container.admin",
-    "roles/artifactregistry.admin",
     "roles/secretmanager.admin",
-    "roles/cloudbuild.builds.editor",
-    "roles/cloudbuild.connectionAdmin",
   ]
 
   # GitHub Actions of this repository authenticate as that service account

@@ -37,6 +37,11 @@ module "gke" {
   # decides (roles/container.developer or above).
   dns_endpoint_external = true
 
+  # Only what a node needs to run and report. Images come from the build
+  # project's registry, which grants these nodes read access itself
+  # (../../../build/pipeline).
+  node_service_account_roles = ["roles/container.defaultNodeServiceAccount"]
+
   labels = {
     project     = "pokechamps"
     environment = "prod"
