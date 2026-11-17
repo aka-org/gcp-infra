@@ -17,8 +17,9 @@
 # asks before creating anything); then, the first time, backend.tf is
 # written to point at the new bucket and the state is copied into it and
 # removed from this machine. Running it again later applies changes to
-# the stage against the state in the bucket. backend.tf holds only the
-# bucket's name and is committed.
+# the stage against the state in the bucket. Each run also writes ci.env,
+# the project's identifiers the Terraform workflow reads. backend.tf and
+# ci.env hold names only, nothing secret, and are committed.
 set -euo pipefail
 
 environment=${1:?usage: tools/bootstrap <project>/<environment>}
@@ -48,13 +49,17 @@ BACKEND
   echo "State moved to gs://$bucket/bootstrap. Commit $environment/bootstrap/backend.tf."
 fi
 
-# The variables are named after the environment (pokechamps/prod ->
-# PROD_...), since each has a project and accounts of its own.
-prefix=$(basename "$environment" | tr '[:lower:]-' '[:upper:]_')
+# What CI needs to act in the project, read by the Terraform workflow:
+# identifiers only (nothing secret), rewritten at every run and committed.
+cat > ci.env <<CIENV
+# Written by tools/bootstrap from this stage's outputs: what CI needs to
+# act in the project. Identifiers only, nothing secret.
+GCP_PROJECT_ID=$(terraform output -raw project_id)
+GCP_SERVICE_ACCOUNT=$(terraform output -raw terraform_service_account)
+GCP_PLAN_SERVICE_ACCOUNT=$(terraform output -raw plan_service_account)
+GCP_WORKLOAD_IDENTITY_PROVIDER=$(terraform output -raw workload_identity_provider)
+TF_STATE_BUCKET=$(terraform output -raw state_bucket)
+CIENV
+
 echo
-echo "Set these as Actions variables of the infra repository:"
-echo "  ${prefix}_GCP_PROJECT_ID=$(terraform output -raw project_id)"
-echo "  ${prefix}_GCP_SERVICE_ACCOUNT=$(terraform output -raw terraform_service_account)"
-echo "  ${prefix}_GCP_PLAN_SERVICE_ACCOUNT=$(terraform output -raw plan_service_account)"
-echo "  ${prefix}_GCP_WORKLOAD_IDENTITY_PROVIDER=$(terraform output -raw workload_identity_provider)"
-echo "  ${prefix}_TF_STATE_BUCKET=$(terraform output -raw state_bucket)"
+echo "Commit $environment/bootstrap/backend.tf and ci.env (through a pull request)."
