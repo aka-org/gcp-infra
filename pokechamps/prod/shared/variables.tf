@@ -1,4 +1,9 @@
 variable "project_id" {
-  description = "The id of the environment's project (the bootstrap stage's output; in CI the Actions variable GCP_PROJECT_ID, passed as TF_VAR_project_id)"
+  description = "The id of the environment's project (in CI, GCP_PROJECT_ID of ../bootstrap/ci.env, passed as TF_VAR_project_id)"
+  type        = string
+}
+
+variable "build_project_id" {
+  description = "The id of the build project, whose Cloud Build account deploys here (in CI, from pokechamps/build/bootstrap/ci.env, passed as TF_VAR_build_project_id)"
   type        = string
 }

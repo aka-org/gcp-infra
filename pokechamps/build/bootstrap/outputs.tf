@@ -14,16 +14,16 @@ output "state_bucket" {
 }
 
 output "terraform_service_account" {
-  description = "Email of the service account the other stages are applied as, from main only (the Actions variable GCP_SERVICE_ACCOUNT)"
+  description = "Email of the service account the other stages are applied as, from main only"
   value       = module.project.sa_email
 }
 
 output "plan_service_account" {
-  description = "Email of the read-only service account pull requests plan as (the Actions variable GCP_PLAN_SERVICE_ACCOUNT)"
+  description = "Email of the read-only service account pull requests plan as"
   value       = module.project.plan_sa_email
 }
 
 output "workload_identity_provider" {
-  description = "Full name of the identity provider this repository's Actions authenticate through (the Actions variable GCP_WORKLOAD_IDENTITY_PROVIDER)"
+  description = "Full name of the identity provider this repository's Actions authenticate through"
   value       = one(module.project.identity_provider_github_full_ids)
 }
