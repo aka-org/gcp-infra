@@ -1,0 +1,126 @@
+name: Terraform, one project
+
+# Plans or applies the stages of one Google Cloud project, called by
+# terraform.yml once per project.
+#
+# What it needs to act in the project comes from the file the project's
+# bootstrap wrote, <project>/bootstrap/ci.env (identifiers only); a
+# project without that file hasn't been bootstrapped and is skipped. Both
+# accounts are reached through Workload Identity Federation: no key is
+# stored anywhere.
+on:
+  workflow_call:
+    inputs:
+      project:
+        description: The project's folder, e.g. pokechamps/prod
+        type: string
+        required: true
+      stages:
+        description: Its stages, space-separated, in the order they are applied (paths under the project's folder)
+        type: string
+        required: true
+      validate_only:
+        description: Stages a plan run only validates (space-separated)
+        type: string
+        default: ""
+      mode:
+        description: plan (as the read-only account) or apply (as Terraform's account, from main only)
+        type: string
+        required: true
+      environment:
+        description: The GitHub environment an apply waits in for its reviewer
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  TERRAFORM_VERSION: "1.11.4"
+  TF_IN_AUTOMATION: "1"
+
+jobs:
+  plan:
+    if: inputs.mode == 'plan'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the projects' identifiers
+        id: ci
+        run: .github/ci-env.sh "${{ inputs.project }}"
+      - uses: hashicorp/setup-terraform@v3
+        if: steps.ci.outputs.bootstrapped == 'true'
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: google-github-actions/auth@v2
+        if: steps.ci.outputs.bootstrapped == 'true'
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_PLAN_SERVICE_ACCOUNT }}
+      # The plan stays in this run's log; it is not posted on the pull
+      # request. -lock=false: the plan account can't write the state's lock.
+      - name: Plan every stage
+        if: steps.ci.outputs.bootstrapped == 'true'
+        env:
+          STAGES: ${{ inputs.stages }}
+          VALIDATE_ONLY: ${{ inputs.validate_only }}
+          PROJECT: ${{ inputs.project }}
+        run: |
+          set -euo pipefail
+          for stage in $STAGES; do
+            echo "::group::$PROJECT/$stage"
+            terraform -chdir="$PROJECT/$stage" init -input=false
+            terraform -chdir="$PROJECT/$stage" validate
+            case " $VALIDATE_ONLY " in
+              *" $stage "*) echo "validated only: its plan is shown by the apply job, in the run for main" ;;
+              *) terraform -chdir="$PROJECT/$stage" plan -input=false -lock=false ;;
+            esac
+            echo "::endgroup::"
+          done
+
+  apply:
+    if: inputs.mode == 'apply'
+    runs-on: ubuntu-latest
+    # Waits for the environment's required reviewer before it starts.
+    environment: ${{ inputs.environment }}
+    concurrency: terraform-${{ inputs.project }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the projects' identifiers
+        id: ci
+        run: .github/ci-env.sh "${{ inputs.project }}"
+      - uses: hashicorp/setup-terraform@v3
+        if: steps.ci.outputs.bootstrapped == 'true'
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: google-github-actions/auth@v2
+        if: steps.ci.outputs.bootstrapped == 'true'
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+      # A Helm provider gets its cluster token from this plugin.
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.ci.outputs.bootstrapped == 'true'
+        with:
+          install_components: gke-gcloud-auth-plugin
+      - name: Apply every stage, in order
+        if: steps.ci.outputs.bootstrapped == 'true'
+        env:
+          STAGES: ${{ inputs.stages }}
+          PROJECT: ${{ inputs.project }}
+        run: |
+          set -euo pipefail
+          for stage in $STAGES; do
+            echo "::group::$PROJECT/$stage"
+            terraform -chdir="$PROJECT/$stage" init -input=false
+            terraform -chdir="$PROJECT/$stage" apply -input=false -auto-approve
+            echo "::endgroup::"
+          done

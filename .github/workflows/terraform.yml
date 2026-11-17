@@ -1,114 +1,92 @@
 name: Terraform
 
-# Plans every stage on a pull request and applies them on main.
+# Plans every stage on a pull request and applies them on main, project by
+# project (terraform-project.yml does the work for one).
 #
-# A pull request's run uses the pull request's own copy of this file, so
-# it authenticates as the read-only plan account (it can read the project
-# and the state, and change nothing). Google accepts Terraform's own
-# service account only from runs for main, and the apply job also waits
-# for the `prod` environment's reviewer.
+# A pull request's run uses the pull request's own copy of these files, so
+# it authenticates as each project's read-only plan account (it can read
+# the project and the state, and change nothing). Google accepts a
+# project's own Terraform account only from runs for main, and each apply
+# also waits for its GitHub environment's reviewer.
 #
-# Both accounts are reached through Workload Identity Federation: no key
-# is stored anywhere. Repository variables (Settings -> Secrets and
-# variables -> Actions -> Variables), printed by tools/bootstrap:
-#   GCP_PROJECT_ID, GCP_WORKLOAD_IDENTITY_PROVIDER,
-#   GCP_SERVICE_ACCOUNT, GCP_PLAN_SERVICE_ACCOUNT
-#
-# The bootstrap stage is not here: a person applies it (tools/bootstrap).
+# Bootstrap stages are not here: a person applies them (tools/bootstrap).
+# Adding a stage is adding it to its project's list below, in the order
+# it is applied.
 on:
   pull_request:
     paths:
       - "pokechamps/**"
-      - ".github/workflows/terraform.yml"
+      - ".github/**"
   push:
     branches: [main]
     paths:
       - "pokechamps/**"
-      - ".github/workflows/terraform.yml"
+      - ".github/**"
   workflow_dispatch:
 
 permissions:
   contents: read
 
-env:
-  TERRAFORM_VERSION: "1.11.4"
-  # The stages, in the order they are applied: each may use what the ones
-  # before it created.
-  STAGES: >-
-    pokechamps/prod/shared
-    pokechamps/prod/eu/cluster
-    pokechamps/prod/eu/platform
-  # Stages a pull request only validates, without a plan: planning a Helm
-  # release reads the release's record, a Kubernetes Secret, and the
-  # read-only plan account is not given access to Secrets in the cluster.
-  VALIDATE_ONLY: >-
-    pokechamps/prod/eu/platform
-  TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
-  TF_IN_AUTOMATION: "1"
-
 jobs:
-  plan:
+  fmt:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-          terraform_wrapper: false
+          terraform_version: "1.11.4"
       - run: terraform fmt -check -recursive -diff pokechamps
-      - uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_PLAN_SERVICE_ACCOUNT }}
-      # The plan stays in this run's log; it is not posted on the pull
-      # request. -lock=false: the plan account can't write the state's lock.
-      - name: Plan every stage
-        run: |
-          set -euo pipefail
-          for stage in $STAGES; do
-            echo "::group::$stage"
-            terraform -chdir="$stage" init -input=false
-            terraform -chdir="$stage" validate
-            case " $VALIDATE_ONLY " in
-              *" $stage "*) echo "validated only: its plan is shown by the apply job, in the run for main" ;;
-              *) terraform -chdir="$stage" plan -input=false -lock=false ;;
-            esac
-            echo "::endgroup::"
-          done
 
-  apply:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    # Waits for the environment's required reviewer before it starts.
-    environment: prod
-    concurrency: terraform-prod
+  plan-build:
+    if: github.event_name == 'pull_request'
     permissions:
       contents: read
       id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-          terraform_wrapper: false
-      - uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
-      # The Helm provider gets its cluster token from this plugin.
-      - uses: google-github-actions/setup-gcloud@v2
-        with:
-          install_components: gke-gcloud-auth-plugin
-      - name: Apply every stage, in order
-        run: |
-          set -euo pipefail
-          for stage in $STAGES; do
-            echo "::group::$stage"
-            terraform -chdir="$stage" init -input=false
-            terraform -chdir="$stage" apply -input=false -auto-approve
-            echo "::endgroup::"
-          done
+    uses: ./.github/workflows/terraform-project.yml
+    with:
+      project: pokechamps/build
+      stages: pipeline
+      mode: plan
+
+  plan-prod:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/terraform-project.yml
+    with:
+      project: pokechamps/prod
+      stages: shared eu/cluster eu/platform
+      # Planning a Helm release reads the release's record, a Kubernetes
+      # Secret, and the read-only plan account is not given access to
+      # Secrets in the cluster.
+      validate_only: eu/platform
+      mode: plan
+
+  # The build project first: the environments grant its build account
+  # access to their clusters.
+  apply-build:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/terraform-project.yml
+    with:
+      project: pokechamps/build
+      stages: pipeline
+      mode: apply
+      environment: build
+
+  apply-prod:
+    needs: apply-build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/terraform-project.yml
+    with:
+      project: pokechamps/prod
+      stages: shared eu/cluster eu/platform
+      mode: apply
+      environment: prod
