@@ -8,13 +8,14 @@ Google Cloud infrastructure for aka-org's projects, as Terraform, laid out `<pro
 <project>/<environment>/bootstrap/          the environment's Google Cloud project, Terraform's service account, state bucket, Actions identity
 <project>/<environment>/<region>/<stage>/   what runs in one region: one Terraform root per stage, its state under its own prefix
 
+pokechamps/build/bootstrap/                 the project pokechamps-build-<suffix>: where images are built and kept, for every environment
 pokechamps/prod/bootstrap/                  the project pokechamps-prod-<suffix>
 pokechamps/prod/shared/                     what production's regions share: network, image registry, data bucket, service accounts, the secret entry
 pokechamps/prod/eu/cluster/                 production's GKE Autopilot cluster in europe-west1
 pokechamps/prod/eu/platform/                what runs in that cluster before any app: External Secrets and its Secret Manager store
 ```
 
-An environment is named by its role (`prod`, `dev`) and lives in a Google Cloud project of its own, created by its `bootstrap` stage: the project is the boundary for access, billing and mistakes. A project is not tied to a region, so an environment that runs in two regions keeps both in the one project, each in its own folder. Another environment is another folder and another project, sharing nothing.
+An environment is named by its role (`prod`, `dev`) and lives in a Google Cloud project of its own, created by its `bootstrap` stage: the project is the boundary for access, billing and mistakes. A project is not tied to a region, so an environment that runs in two regions keeps both in the one project, each in its own folder. Another environment is another folder and another project. What environments must share -- the image registry and the pipeline that fills it, so each runs the same image and not a rebuild -- lives in a project of its own, `build`.
 
 **Bootstrap** stages create what CI needs before it can run, so a person applies them once from a workstation with `tools/bootstrap <project>/<environment>` (its header lists what to set first). The other stages are applied by CI as the service account the bootstrap made.
 
