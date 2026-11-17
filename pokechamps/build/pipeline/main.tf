@@ -89,3 +89,40 @@ resource "google_project_iam_member" "cloudbuild_logs" {
   role    = "roles/logging.logWriter"
   member  = "serviceAccount:${google_service_account.cloudbuild.email}"
 }
+
+# A release of the site: when a version tag (vX.Y.Z) is pushed to the app
+# repository, Cloud Build runs that commit's cloudbuild.yaml -- the facts
+# check, the five images, the Helm releases into production -- as the
+# account above, once a person has approved the build in the console.
+#
+# The repository is reached through the connection `github-aka-org`,
+# made by hand in the console (it holds GitHub's authorisation, a secret
+# Cloud Build keeps in Secret Manager itself), with the repository linked
+# to it as `aka-org-pokechamps`.
+resource "google_cloudbuild_trigger" "release" {
+  project     = var.project_id
+  location    = local.region
+  name        = "pokechamps-release"
+  description = "Builds and deploys a version tag of aka-org/pokechamps to production"
+
+  repository_event_config {
+    repository = "projects/${var.project_id}/locations/${local.region}/connections/github-aka-org/repositories/aka-org-pokechamps"
+    push {
+      tag = "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+    }
+  }
+
+  filename        = "cloudbuild.yaml"
+  service_account = google_service_account.cloudbuild.id
+
+  # The app repository's main branch can't be protected on GitHub's free
+  # plan: nothing reaches production without this approval.
+  approval_config {
+    approval_required = true
+  }
+
+  depends_on = [
+    google_artifact_registry_repository_iam_member.push,
+    google_project_iam_member.cloudbuild_logs,
+  ]
+}
