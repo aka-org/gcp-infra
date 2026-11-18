@@ -24,6 +24,8 @@ An environment is named by its role (`prod`, `dev`) and lives in a Google Cloud 
 
 **What CI needs to act in a project is a file, not a setting**: each bootstrap writes `<project>/<environment>/bootstrap/ci.env` (the project's id, its two service accounts, its identity provider, its state bucket), committed beside `backend.tf`. They are names, not secrets -- what protects a project is that Google accepts its Terraform account only from this repository's `main`.
 
+**What was set up by hand** -- console settings, connections, keys made outside Terraform, GitHub and Cloudflare settings -- is in [`docs/manual-setup.md`](docs/manual-setup.md).
+
 **No secret is kept in Terraform state or in this repository**: providers authenticate from the environment, the billing account id and similar values arrive as `TF_VAR_*` variables, and secret values are added to Secret Manager by hand.
 
 ## Tools
