@@ -1,7 +1,10 @@
 name: Terraform, one project
 
 # Plans or applies the stages of one Google Cloud project, called by
-# terraform.yml once per project.
+# terraform.yml once per project. With `changed` false the job is skipped
+# rather than not called: a skipped job reports its check (the ruleset's
+# required "plan-<project> / plan"), and an apply skipped this way never
+# asks its environment's reviewer.
 #
 # What it needs to act in the project comes from the file the project's
 # bootstrap wrote, <project>/bootstrap/ci.env (identifiers only); a
@@ -31,6 +34,10 @@ on:
         description: The GitHub environment an apply waits in for its reviewer
         type: string
         default: ""
+      changed:
+        description: Whether anything this project reads changed (terraform.yml's `changes`); false skips the job, which still reports its check
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -41,7 +48,7 @@ env:
 
 jobs:
   plan:
-    if: inputs.mode == 'plan'
+    if: inputs.mode == 'plan' && inputs.changed
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -83,7 +90,7 @@ jobs:
           done
 
   apply:
-    if: inputs.mode == 'apply'
+    if: inputs.mode == 'apply' && inputs.changed
     runs-on: ubuntu-latest
     # Waits for the environment's required reviewer before it starts.
     environment: ${{ inputs.environment }}

@@ -9,25 +9,58 @@ name: Terraform
 # project's own Terraform account only from runs for main, and each apply
 # also waits for its GitHub environment's reviewer.
 #
+# Every pull request and every push to main runs it, whatever changed (a
+# path filter would leave the ruleset's required checks waiting forever on
+# a pull request that touches no Terraform); the `changes` job then decides
+# which projects have anything to do. A project's jobs run when a file
+# under its folder changed, or one every project reads: these workflows,
+# .github/ci-env.sh, any bootstrap's ci.env. Otherwise they are skipped --
+# a skipped plan still passes its required check, and a skipped apply asks
+# no reviewer. A manual run (workflow_dispatch) does every project.
+#
 # Bootstrap stages are not here: a person applies them (tools/bootstrap).
 # Adding a stage is adding it to its project's list below, in the order
 # it is applied.
 on:
   pull_request:
-    paths:
-      - "pokechamps/**"
-      - ".github/**"
   push:
     branches: [main]
-    paths:
-      - "pokechamps/**"
-      - ".github/**"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.diff.outputs.build }}
+      prod: ${{ steps.diff.outputs.prod }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          projects="build prod"
+          # a manual run, a new branch, or a base this checkout lacks: every project
+          if [ "$EVENT" = workflow_dispatch ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            for p in $projects; do echo "$p=true" >> "$GITHUB_OUTPUT"; done
+            exit 0
+          fi
+          files=$(git diff --name-only "$BASE" "$HEAD")
+          echo "$files"
+          every=false
+          if echo "$files" | grep -qE '^\.github/workflows/terraform(-project)?\.yml$|^\.github/ci-env\.sh$|^pokechamps/[^/]+/bootstrap/ci\.env$'; then every=true; fi
+          for p in $projects; do
+            if [ "$every" = true ] || echo "$files" | grep -q "^pokechamps/$p/"; then echo "$p=true"; else echo "$p=false"; fi >> "$GITHUB_OUTPUT"
+          done
+
   fmt:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -39,6 +72,7 @@ jobs:
       - run: terraform fmt -check -recursive -diff pokechamps
 
   plan-build:
+    needs: changes
     if: github.event_name == 'pull_request'
     permissions:
       contents: read
@@ -48,8 +82,10 @@ jobs:
       project: pokechamps/build
       stages: pipeline
       mode: plan
+      changed: ${{ needs.changes.outputs.build == 'true' }}
 
   plan-prod:
+    needs: changes
     if: github.event_name == 'pull_request'
     permissions:
       contents: read
@@ -63,10 +99,12 @@ jobs:
       # Secrets in the cluster.
       validate_only: eu/platform
       mode: plan
+      changed: ${{ needs.changes.outputs.prod == 'true' }}
 
   # The build project first: the environments grant its build account
   # access to their clusters.
   apply-build:
+    needs: changes
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -77,9 +115,10 @@ jobs:
       stages: pipeline
       mode: apply
       environment: build
+      changed: ${{ needs.changes.outputs.build == 'true' }}
 
   apply-prod:
-    needs: apply-build
+    needs: [changes, apply-build]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -90,3 +129,4 @@ jobs:
       stages: shared eu/cluster eu/platform
       mode: apply
       environment: prod
+      changed: ${{ needs.changes.outputs.prod == 'true' }}
