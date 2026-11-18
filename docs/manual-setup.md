@@ -54,6 +54,13 @@ and `pokechamps/build`.
   `europe-west1`) → the pending build → Approve, or
   `gcloud builds approve BUILD_ID --project <build project> --region europe-west1`.
   GitHub shows the build's status but can't approve it.
+- **Deploying without a release** (a configuration change only): Cloud
+  Build → Triggers → `pokechamps-deploy` → Run, with `_VERSION` set to a
+  released version (`0.2.0`), or `gcloud builds triggers run
+  pokechamps-deploy --project <build project> --region europe-west1
+  --branch main --substitutions _VERSION=0.2.0`; then approve it like a
+  release. The trigger is Terraform (`pokechamps/build/pipeline`); what it
+  runs is the app repository's `cloudbuild-deploy.yaml`.
 
 ### Cluster access from a workstation
 
@@ -95,7 +102,12 @@ published reports written again: `pokechamps` repository,
   set up by the same steps.
 - **GitHub environments** gate this repository's Terraform applies: each
   project's apply job runs in an environment whose required reviewer approves
-  it (`.github/workflows/terraform.yml`).
+  it (`.github/workflows/terraform.yml`). Only a project something changed
+  in asks; the others' jobs are skipped.
+- **Required checks** on this repository's `main`: `fmt`, `plan-build /
+  plan`, `plan-prod / plan`. The Terraform workflow runs on every pull
+  request so they always report: a project nothing changed in reports its
+  plan as skipped, which passes.
 - **Dependabot**: security updates on, through the organisation's code
   security configuration; Advanced Security features are unavailable to the
   private repository on the Free plan.
