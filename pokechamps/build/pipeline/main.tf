@@ -126,3 +126,41 @@ resource "google_cloudbuild_trigger" "release" {
     google_project_iam_member.cloudbuild_logs,
   ]
 }
+
+# A deploy with no new images: a person runs it (the console's Run, or
+# `gcloud builds triggers run pokechamps-deploy --branch main
+# --substitutions _VERSION=1.2.3`) when only configuration changed -- the
+# app repository's chart or deploy/ values -- and Cloud Build runs main's
+# cloudbuild-deploy.yaml: an already-built version's images with main's
+# configuration, as the release's own deploy step does. Same account and
+# same approval as a release; _VERSION is required (the build stops without
+# a version whose images exist).
+resource "google_cloudbuild_trigger" "deploy" {
+  project     = var.project_id
+  location    = local.region
+  name        = "pokechamps-deploy"
+  description = "Deploys an already-built version of aka-org/pokechamps with main's configuration"
+
+  source_to_build {
+    repository = "projects/${var.project_id}/locations/${local.region}/connections/github-aka-org/repositories/aka-org-pokechamps"
+    ref        = "refs/heads/main"
+    repo_type  = "GITHUB"
+  }
+
+  git_file_source {
+    path       = "cloudbuild-deploy.yaml"
+    repository = "projects/${var.project_id}/locations/${local.region}/connections/github-aka-org/repositories/aka-org-pokechamps"
+    revision   = "refs/heads/main"
+    repo_type  = "GITHUB"
+  }
+
+  substitutions = {
+    _VERSION = ""
+  }
+
+  service_account = google_service_account.cloudbuild.id
+
+  approval_config {
+    approval_required = true
+  }
+}
