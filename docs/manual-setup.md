@@ -6,9 +6,6 @@ same setup again, and the settings to check when something behaves
 unexpectedly. Values that are secrets or that identify a person (billing
 account ids, email addresses, account names) are not written here.
 
-Items marked **(to confirm)** were done by hand and are written from memory
-of the setup; check them against the console and drop the mark.
-
 ## Google Cloud
 
 ### Accounts and billing
@@ -94,12 +91,11 @@ published reports written again: `pokechamps` repository,
 - **Rulesets on `main`**: no force push, no deletion, changes through a pull
   request. GitHub enforces rulesets on public repositories on the Free plan;
   on a private one (`pokechamps`) they are saved but not enforced until the
-  organisation moves to Team. **(to confirm: the exact rules set per
-  repository)**
+  organisation moves to Team. The organisation and each repository were
+  set up by the same steps.
 - **GitHub environments** gate this repository's Terraform applies: each
   project's apply job runs in an environment whose required reviewer approves
-  it (`.github/workflows/terraform.yml`). **(to confirm: environment names
-  and reviewer)**
+  it (`.github/workflows/terraform.yml`).
 - **Dependabot**: security updates on, through the organisation's code
   security configuration; Advanced Security features are unavailable to the
   private repository on the Free plan.
@@ -115,10 +111,10 @@ by the registry by itself.
 
 ## Cloudflare
 
-- **Account**: signed in with the same Google account as Google Cloud.
-  **(to confirm: Cloudflare's own two-factor -- an authenticator app,
-  backup codes stored outside the phone -- and whether the account could be
-  given a password of its own.)**
+- **Account**: signed in with the same Google account as Google Cloud, and
+  also given a Cloudflare password of its own and Cloudflare's own
+  two-factor (an authenticator app; backup codes kept outside the phone).
+  Email is not a second factor: it is the same Google account.
 - **`vgcrival.com`**, registered at Cloudflare Registrar (personal
   registrant, contact details redacted): auto-renew on, registrar lock on,
   DNSSEC enabled (the DS record is added by the registrar itself).
