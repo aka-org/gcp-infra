@@ -23,6 +23,11 @@ output "s3_secret" {
   value       = google_secret_manager_secret.s3.secret_id
 }
 
+output "web_tls_secret" {
+  description = "Id of the Secret Manager entry that holds the site's TLS certificate"
+  value       = google_secret_manager_secret.web_tls.secret_id
+}
+
 output "web_address" {
   description = "The site's public IP address"
   value       = google_compute_global_address.web.address

@@ -1,7 +1,8 @@
 # What production's regions share, inside the one `prod` project: the
 # network (a subnet and a NAT gateway per region), the public data
 # bucket, the site's address, the app's service account, the empty Secret
-# Manager entry for its storage key, and the build project's permission
+# Manager entries for its storage key and the site's certificate, and the
+# build project's permission
 # to deploy here. Images are not kept here: they come from the `build`
 # project's registry (../../build/pipeline).
 #
@@ -116,6 +117,24 @@ resource "google_storage_bucket_iam_member" "app_bucket" {
 resource "google_secret_manager_secret" "s3" {
   project   = var.project_id
   secret_id = "pokechamps-s3"
+
+  replication {
+    user_managed {
+      replicas {
+        location = local.region_eu
+      }
+    }
+  }
+}
+
+# Holds the site's TLS certificate for the load balancer: Cloudflare's
+# Origin certificate for the domain and its private key, as JSON
+# ({"tls.crt": "<PEM>", "tls.key": "<PEM>"}). Created empty: the value is
+# added by hand (docs/manual-setup.md, "Cloudflare"), and External Secrets
+# copies it into the cluster as the app Ingress's TLS Secret.
+resource "google_secret_manager_secret" "web_tls" {
+  project   = var.project_id
+  secret_id = "pokechamps-web-tls"
 
   replication {
     user_managed {
