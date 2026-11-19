@@ -39,7 +39,11 @@ and `pokechamps/build`.
   version, then delete the old key.
 - **The first data was copied from the local store**, then checked byte for
   byte (`pokechamps` repository: `research/platform_check/prod_store.sh copy
-  --apply`, then `verify`).
+  --apply`, then `verify`), into a bucket named after the project; it moved
+  to `cdn.vgcrival.com` when the site took its domain (`pokechamps`
+  repository: `research/platform_check/move_bucket.sh copy --apply`, then
+  `verify`, with the jobs' CronJobs suspended), and the first bucket was
+  emptied by hand and removed.
 
 ### Cloud Build (the `build` project)
 
