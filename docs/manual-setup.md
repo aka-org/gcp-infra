@@ -141,13 +141,13 @@ by the registry by itself.
 Two account API tokens (My Profile → API Tokens → Create Custom Token), each
 limited to the zone `vgcrival.com` (Zone Resources: Include · Specific zone):
 
-- **`gcp-infra plan`**, read-only: Zone · Zone · Read, Zone · DNS · Read,
+- **`gcp-infra-plan`**, read-only: Zone · Zone · Read, Zone · DNS · Read,
   Zone · Zone Settings · Read, Zone · Config Rules · Read, Zone · Single
   Redirect · Read (the dashboard's names for the zone's dynamic redirects).
   Stored as the **repository** secret `CLOUDFLARE_API_TOKEN` of
   `aka-org/gcp-infra` (Settings → Secrets and variables → Actions); plans
   read it.
-- **`gcp-infra apply`**, the same permissions with Edit in place of Read
+- **`gcp-infra-apply`**, the same permissions with Edit in place of Read
   (Zone · Zone stays Read). Stored as the **`prod` environment's** secret
   `CLOUDFLARE_API_TOKEN` (Settings → Environments → prod); an apply runs in
   that environment, where it takes the repository secret's place.
