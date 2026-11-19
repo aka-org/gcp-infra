@@ -131,6 +131,69 @@ by the registry by itself.
   registrant, contact details redacted): auto-renew on, registrar lock on,
   DNSSEC enabled (the DS record is added by the registrar itself).
   Multi-signer DNSSEC and multi-provider DNS stay off: one DNS provider.
-- **No DNS records and no zone settings yet**: the records, the TLS mode
-  and HTTPS settings come with the step that puts the site on the domain,
-  and are to be written here then.
+- **The zone is Terraform** (`pokechamps/prod/edge`): its DNS records, TLS
+  mode, HTTPS settings and rules. What stays by hand is below; a record or
+  setting made in the dashboard instead would be overwritten (a setting) or
+  left unmanaged (a record), so changes go through that stage.
+
+### API tokens for Terraform
+
+Two account API tokens (My Profile → API Tokens → Create Custom Token), each
+limited to the zone `vgcrival.com` (Zone Resources: Include · Specific zone):
+
+- **`gcp-infra plan`**, read-only: Zone · Zone · Read, Zone · DNS · Read,
+  Zone · Zone Settings · Read, Zone · Config Rules · Read, Zone · Single
+  Redirect · Read (the dashboard's names for the zone's dynamic redirects).
+  Stored as the **repository** secret `CLOUDFLARE_API_TOKEN` of
+  `aka-org/gcp-infra` (Settings → Secrets and variables → Actions); plans
+  read it.
+- **`gcp-infra apply`**, the same permissions with Edit in place of Read
+  (Zone · Zone stays Read). Stored as the **`prod` environment's** secret
+  `CLOUDFLARE_API_TOKEN` (Settings → Environments → prod); an apply runs in
+  that environment, where it takes the repository secret's place.
+
+Both exist before a pull request touching the edge stage is opened: its plan
+needs the read-only one. Rotating one: a new token, the secret replaced, the
+old token deleted.
+
+### The site's certificate (Cloudflare Origin CA)
+
+Cloudflare reaches the load balancer over HTTPS and checks its certificate
+(Full (strict)); the load balancer presents a certificate issued by
+Cloudflare's Origin CA, which only Cloudflare trusts. Made by hand so its
+private key never enters Terraform state:
+
+1. SSL/TLS → Origin Server → Create Certificate: "Generate private key and
+   CSR with Cloudflare", key type RSA (2048), hostnames `vgcrival.com` and
+   `*.vgcrival.com`, validity 15 years, format PEM.
+2. Save the certificate and the private key to two files (`origin.crt`,
+   `origin.key`); the key is shown once.
+3. Add them as a new version of the Secret Manager secret
+   `pokechamps-web-tls` (prod project; the empty entry is Terraform's,
+   `pokechamps/prod/shared`):
+   `jq -n --rawfile crt origin.crt --rawfile key origin.key '{"tls.crt": $crt, "tls.key": $key}' | gcloud secrets versions add pokechamps-web-tls --project <prod project> --data-file=-`
+4. Delete both files (`shred -u origin.crt origin.key`).
+
+External Secrets copies it into the cluster as the Ingress's TLS Secret
+(the app repository's `deploy/prod/web.yaml`); the load balancer picks up a
+new version within the operator's refresh interval. Renewing: a new
+certificate the same way, then revoke the old one in the same dashboard
+page. It expires 15 years after issue.
+
+### Proving the domain to Google (for the `cdn.` bucket)
+
+Cloud Storage creates a bucket named after a domain only for an account
+Google knows owns it. Done once, with the infrastructure's Google account:
+
+1. Google Search Console → Add property → **Domain** → `vgcrival.com`; copy
+   the TXT value it shows (`google-site-verification=...`), don't verify
+   yet.
+2. Set it as `google_site_verification` in `pokechamps/prod/edge` (a pull
+   request: the value is public, as every DNS record is) and let the apply
+   add the record.
+3. Back in Search Console: Verify.
+4. Settings → Users and permissions → Add user: production's Terraform
+   service account (`GCP_SERVICE_ACCOUNT` in `pokechamps/prod/bootstrap/ci.env`),
+   permission **Owner**. Terraform creates the bucket as that account.
+
+The TXT record stays: Google checks it again from time to time.
