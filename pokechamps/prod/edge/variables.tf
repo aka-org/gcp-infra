@@ -12,5 +12,5 @@ variable "domain" {
 variable "google_site_verification" {
   description = "The TXT value Google Search Console gives for proving the domain is ours (google-site-verification=...): public, as every DNS record is. Empty: no record"
   type        = string
-  default     = ""
+  default     = "google-site-verification=75gAxjZtCLXdekgqiDL5A_NZzMNEoYDdDKXk-Koq1kw"
 }
