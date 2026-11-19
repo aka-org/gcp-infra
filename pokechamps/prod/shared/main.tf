@@ -1,6 +1,6 @@
 # What production's regions share, inside the one `prod` project: the
 # network (a subnet and a NAT gateway per region), the public data
-# bucket (and its successor at the site's domain, cdn.<domain>), the site's address, the app's service account, the empty Secret
+# bucket, the site's address, the app's service account, the empty Secret
 # Manager entry for its storage key, and the build project's permission
 # to deploy here. Images are not kept here: they come from the `build`
 # project's registry (../../build/pipeline).
