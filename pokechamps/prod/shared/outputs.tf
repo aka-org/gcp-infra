@@ -13,6 +13,16 @@ output "data_url" {
   value       = "https://storage.googleapis.com/${google_storage_bucket.data.name}"
 }
 
+output "cdn_bucket" {
+  description = "Name of the data bucket at the site's domain"
+  value       = google_storage_bucket.cdn.name
+}
+
+output "cdn_url" {
+  description = "The public address the site reads the data bucket at, through Cloudflare"
+  value       = "https://${google_storage_bucket.cdn.name}"
+}
+
 output "app_service_account" {
   description = "Email of the service account the HMAC key is created for"
   value       = google_service_account.app.email

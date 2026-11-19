@@ -7,3 +7,9 @@ variable "build_project_id" {
   description = "The id of the build project, whose Cloud Build account deploys here (in CI, from pokechamps/build/bootstrap/ci.env, passed as TF_VAR_build_project_id)"
   type        = string
 }
+
+variable "domain" {
+  description = "The site's domain (its zone is ../edge's); the data bucket at cdn.<domain> is named after it"
+  type        = string
+  default     = "vgcrival.com"
+}
