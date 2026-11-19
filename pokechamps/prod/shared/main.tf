@@ -1,9 +1,8 @@
 # What production's regions share, inside the one `prod` project: the
 # network (a subnet and a NAT gateway per region), the public data
-# bucket, the site's address, the app's service account, the empty Secret
-# Manager entries for its storage key and the site's certificate, and the
-# build project's permission
-# to deploy here. Images are not kept here: they come from the `build`
+# bucket (cdn.<domain>), the site's address, the app's service account,
+# the empty Secret Manager entries for its storage key and the site's
+# certificate, and the build project's permission to deploy here. Images are not kept here: they come from the `build`
 # project's registry (../../build/pipeline).
 #
 # Applied by CI as Terraform's service account, before any region's
@@ -61,33 +60,6 @@ module "network" {
   }]
 }
 
-# The files the jobs publish and the site reads: the data "CDN". Public
-# to read, object by object; written only by the app's service account,
-# through Cloud Storage's S3-compatible API.
-resource "google_storage_bucket" "data" {
-  project  = var.project_id
-  name     = "${var.project_id}-data"
-  location = upper(local.region_eu)
-
-  uniform_bucket_level_access = true
-  public_access_prevention    = "inherited"
-
-  # Browsers fetch these files from the site's own pages.
-  cors {
-    origin          = ["*"]
-    method          = ["GET", "HEAD"]
-    response_header = ["Content-Type", "Cache-Control", "ETag"]
-    max_age_seconds = 3600
-  }
-}
-
-# Anyone may fetch an object by its name; nobody may list the bucket.
-resource "google_storage_bucket_iam_member" "data_public_read" {
-  bucket = google_storage_bucket.data.name
-  role   = "roles/storage.legacyObjectReader"
-  member = "allUsers"
-}
-
 # The identity the sync, teams and reports jobs write the bucket as. Its
 # HMAC key (the S3 API's access key and secret) is created by hand and
 # stored by hand in the secret below: no key is ever in Terraform state.
@@ -97,30 +69,18 @@ resource "google_service_account" "app" {
   display_name = "pokechamps jobs: writes the data bucket"
 }
 
-resource "google_storage_bucket_iam_member" "app_objects" {
-  bucket = google_storage_bucket.data.name
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.app.email}"
-}
-
-# Listing and reading the bucket's own metadata, which the S3 API's
-# bucket-level calls need.
-resource "google_storage_bucket_iam_member" "app_bucket" {
-  bucket = google_storage_bucket.data.name
-  role   = "roles/storage.legacyBucketReader"
-  member = "serviceAccount:${google_service_account.app.email}"
-}
-
-# The same files at the site's own domain: the bucket named after
-# `cdn.<domain>`, served by Cloudflare's proxy through Cloud Storage's
-# c.storage.googleapis.com endpoint (../edge), which picks a bucket by the
-# request's Host -- the free way to put a bucket behind a domain, since
-# Cloudflare overrides a Host only on its Enterprise plan. Cloud Storage
-# creates a bucket named after a domain only for an account Google knows
-# owns it: Terraform's account is made an owner of the domain by hand
-# first (docs/manual-setup.md, "Proving the domain to Google"). Settings
-# as the data bucket's; the jobs move to it from that one, which stays
-# until the move is confirmed.
+# The files the jobs publish and the site reads: the data "CDN". Public
+# to read, object by object; written only by the app's service account,
+# through Cloud Storage's S3-compatible API. The apps read it at Cloud
+# Storage's own address; browsers at the site's domain, through
+# Cloudflare: it is named after `cdn.<domain>` and served by Cloudflare's
+# proxy through Cloud Storage's c.storage.googleapis.com endpoint (../edge),
+# which picks a bucket by the request's Host -- the free way to put a
+# bucket behind a domain, since Cloudflare overrides a Host only on its
+# Enterprise plan. Cloud Storage creates a bucket named after a domain only
+# for an account Google knows owns it: Terraform's account is made an owner
+# of the domain by hand first (docs/manual-setup.md, "Proving the domain
+# to Google").
 resource "google_storage_bucket" "cdn" {
   project  = var.project_id
   name     = "cdn.${var.domain}"
@@ -138,8 +98,7 @@ resource "google_storage_bucket" "cdn" {
   }
 }
 
-# As the data bucket: anyone may fetch an object by its name, nobody may
-# list the bucket; the app's service account writes it.
+# Anyone may fetch an object by its name; nobody may list the bucket.
 resource "google_storage_bucket_iam_member" "cdn_public_read" {
   bucket = google_storage_bucket.cdn.name
   role   = "roles/storage.legacyObjectReader"
@@ -152,6 +111,8 @@ resource "google_storage_bucket_iam_member" "cdn_app_objects" {
   member = "serviceAccount:${google_service_account.app.email}"
 }
 
+# Listing and reading the bucket's own metadata, which the S3 API's
+# bucket-level calls need.
 resource "google_storage_bucket_iam_member" "cdn_app_bucket" {
   bucket = google_storage_bucket.cdn.name
   role   = "roles/storage.legacyBucketReader"

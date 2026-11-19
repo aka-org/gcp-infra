@@ -5,21 +5,16 @@ output "network" {
 
 output "data_bucket" {
   description = "Name of the data bucket"
-  value       = google_storage_bucket.data.name
-}
-
-output "data_url" {
-  description = "The public address the site reads the data bucket at"
-  value       = "https://storage.googleapis.com/${google_storage_bucket.data.name}"
-}
-
-output "cdn_bucket" {
-  description = "Name of the data bucket at the site's domain"
   value       = google_storage_bucket.cdn.name
 }
 
+output "data_url" {
+  description = "The address the apps read the data bucket at (Cloud Storage's own)"
+  value       = "https://storage.googleapis.com/${google_storage_bucket.cdn.name}"
+}
+
 output "cdn_url" {
-  description = "The public address the site reads the data bucket at, through Cloudflare"
+  description = "The address browsers read the data bucket at, through Cloudflare"
   value       = "https://${google_storage_bucket.cdn.name}"
 }
 
