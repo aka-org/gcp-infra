@@ -120,9 +120,13 @@ jobs:
       environment: build
       changed: ${{ needs.changes.outputs.build == 'true' }}
 
+  # Runs after the build project's apply, or without it when nothing in
+  # build changed: a job whose `needs` was skipped is skipped too unless
+  # its condition says otherwise, so this one stops only on a failed or
+  # cancelled build apply.
   apply-prod:
     needs: [changes, apply-build]
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: ${{ !failure() && !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
     permissions:
       contents: read
       id-token: write
