@@ -110,6 +110,11 @@ resource "cloudflare_dns_record" "google_verification" {
 }
 
 # --- TLS and HTTPS ------------------------------------------------------
+#
+# A zone setting always exists at Cloudflare: Terraform sets its value and
+# can't delete it (the provider warns so on every apply). Taking one out of
+# this file leaves Cloudflare's value as it was; to undo a setting, set it
+# back here instead.
 
 # Cloudflare to the origin over HTTPS with the certificate checked: Full
 # (strict). The origin is the load balancer with Cloudflare's Origin
