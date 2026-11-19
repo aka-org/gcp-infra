@@ -153,8 +153,10 @@ limited to the zone `vgcrival.com` (Zone Resources: Include · Specific zone):
   that environment, where it takes the repository secret's place.
 
 Both exist before a pull request touching the edge stage is opened: its plan
-needs the read-only one. Rotating one: a new token, the secret replaced, the
-old token deleted.
+needs the read-only one. Both were made with a one-year lifetime (created
+2026-11-19, so they expire around 2027-11-19): an expired token fails the
+edge stage's plan or apply with an authentication error. Rotating one: a new
+token, the secret replaced, the old token deleted.
 
 ### The site's certificate (Cloudflare Origin CA)
 
