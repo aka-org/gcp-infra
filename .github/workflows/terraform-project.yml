@@ -73,10 +73,11 @@ jobs:
         if: steps.ci.outputs.bootstrapped == 'true'
       # The plan stays in this run's log; it is not posted on the pull
       # request. -lock=false: the plan account can't write the state's lock.
-      # A stage with no state yet (a new one) is validated only: Terraform's
-      # GCS backend writes a lock to create a missing state even with
-      # -lock=false, which the plan account can't; its first plan is the
-      # apply job's, in the run for main, which creates the state.
+      # A stage with no state yet (a new one) is validated only, initialised
+      # without its backend: Terraform's GCS backend writes a lock to create
+      # a missing state (in `init`, and even with -lock=false), which the
+      # plan account can't; its first plan is the apply job's, in the run
+      # for main, which creates the state.
       - name: Plan every stage
         if: steps.ci.outputs.bootstrapped == 'true'
         env:
@@ -90,11 +91,11 @@ jobs:
           set -euo pipefail
           for stage in $STAGES; do
             echo "::group::$PROJECT/$stage"
-            terraform -chdir="$PROJECT/$stage" init -input=false
-            terraform -chdir="$PROJECT/$stage" validate
             # only a missing state skips the plan; any other error fails the job
             if ! out=$(gcloud storage objects describe "gs://$TF_STATE_BUCKET/$stage/default.tfstate" 2>&1 > /dev/null); then
               if echo "$out" | grep -qiE "not found|404|no urls matched"; then
+                terraform -chdir="$PROJECT/$stage" init -input=false -backend=false
+                terraform -chdir="$PROJECT/$stage" validate
                 echo "validated only: $stage has no state yet; its first plan is shown by the apply job, in the run for main"
                 echo "::endgroup::"
                 continue
@@ -102,6 +103,8 @@ jobs:
               echo "$out" >&2
               exit 1
             fi
+            terraform -chdir="$PROJECT/$stage" init -input=false
+            terraform -chdir="$PROJECT/$stage" validate
             case " $VALIDATE_ONLY " in
               *" $stage "*) echo "validated only: its plan is shown by the apply job, in the run for main" ;;
               *) terraform -chdir="$PROJECT/$stage" plan -input=false -lock=false ;;
