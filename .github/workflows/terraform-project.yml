@@ -76,6 +76,9 @@ jobs:
           STAGES: ${{ inputs.stages }}
           VALIDATE_ONLY: ${{ inputs.validate_only }}
           PROJECT: ${{ inputs.project }}
+          # A stage managing Cloudflare reads it (a project without one
+          # leaves the secret unset): read-only for a plan.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
           for stage in $STAGES; do
@@ -123,6 +126,8 @@ jobs:
         env:
           STAGES: ${{ inputs.stages }}
           PROJECT: ${{ inputs.project }}
+          # The environment's editing token, for a stage managing Cloudflare.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
           for stage in $STAGES; do

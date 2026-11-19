@@ -11,7 +11,8 @@ Google Cloud infrastructure for aka-org's projects, as Terraform, laid out `<pro
 pokechamps/build/bootstrap/                 the project pokechamps-build-<suffix>: where images are built and kept, for every environment
 pokechamps/build/pipeline/                  the image registry and Cloud Build's service account
 pokechamps/prod/bootstrap/                  the project pokechamps-prod-<suffix>
-pokechamps/prod/shared/                     what production's regions share: network, data bucket, the site's address, the app's service account, the secret entry
+pokechamps/prod/shared/                     what production's regions share: network, data bucket, the site's address, the app's service account, the secret entries
+pokechamps/prod/edge/                       the site's domain at Cloudflare: DNS records, TLS and HTTPS settings, rules
 pokechamps/prod/eu/cluster/                 production's GKE Autopilot cluster in europe-west1
 pokechamps/prod/eu/platform/                what runs in that cluster before any app: External Secrets and its Secret Manager store
 ```
@@ -26,7 +27,7 @@ An environment is named by its role (`prod`, `dev`) and lives in a Google Cloud 
 
 **What was set up by hand** -- console settings, connections, keys made outside Terraform, GitHub and Cloudflare settings -- is in [`docs/manual-setup.md`](docs/manual-setup.md).
 
-**No secret is kept in Terraform state or in this repository**: providers authenticate from the environment, the billing account id and similar values arrive as `TF_VAR_*` variables, and secret values are added to Secret Manager by hand.
+**No secret is kept in Terraform state or in this repository**: providers authenticate from the environment (Google through Workload Identity Federation, Cloudflare through an API token held as a GitHub secret: read-only for plans, editing in the `prod` environment for applies), the billing account id and similar values arrive as `TF_VAR_*` variables, and secret values are added to Secret Manager by hand.
 
 ## Tools
 

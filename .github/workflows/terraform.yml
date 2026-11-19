@@ -93,13 +93,16 @@ jobs:
     uses: ./.github/workflows/terraform-project.yml
     with:
       project: pokechamps/prod
-      stages: shared eu/cluster eu/platform
+      stages: shared edge eu/cluster eu/platform
       # Planning a Helm release reads the release's record, a Kubernetes
       # Secret, and the read-only plan account is not given access to
       # Secrets in the cluster.
       validate_only: eu/platform
       mode: plan
       changed: ${{ needs.changes.outputs.prod == 'true' }}
+    # CLOUDFLARE_API_TOKEN for the edge stage: the repository's read-only
+    # token here.
+    secrets: inherit
 
   # The build project first: the environments grant its build account
   # access to their clusters.
@@ -126,7 +129,11 @@ jobs:
     uses: ./.github/workflows/terraform-project.yml
     with:
       project: pokechamps/prod
-      stages: shared eu/cluster eu/platform
+      stages: shared edge eu/cluster eu/platform
       mode: apply
       environment: prod
       changed: ${{ needs.changes.outputs.prod == 'true' }}
+    # CLOUDFLARE_API_TOKEN for the edge stage: the `prod` environment's
+    # editing token, which takes the place of the repository's read-only one
+    # of the same name in a job run in that environment.
+    secrets: inherit
