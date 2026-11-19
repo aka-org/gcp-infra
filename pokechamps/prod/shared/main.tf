@@ -1,6 +1,6 @@
 # What production's regions share, inside the one `prod` project: the
 # network (a subnet and a NAT gateway per region), the public data
-# bucket, the site's address, the app's service account, the empty Secret
+# bucket (and its successor at the site's domain, cdn.<domain>), the site's address, the app's service account, the empty Secret
 # Manager entry for its storage key, and the build project's permission
 # to deploy here. Images are not kept here: they come from the `build`
 # project's registry (../../build/pipeline).
@@ -106,6 +106,53 @@ resource "google_storage_bucket_iam_member" "app_objects" {
 # bucket-level calls need.
 resource "google_storage_bucket_iam_member" "app_bucket" {
   bucket = google_storage_bucket.data.name
+  role   = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${google_service_account.app.email}"
+}
+
+# The same files at the site's own domain: the bucket named after
+# `cdn.<domain>`, served by Cloudflare's proxy through Cloud Storage's
+# c.storage.googleapis.com endpoint (../edge), which picks a bucket by the
+# request's Host -- the free way to put a bucket behind a domain, since
+# Cloudflare overrides a Host only on its Enterprise plan. Cloud Storage
+# creates a bucket named after a domain only for an account Google knows
+# owns it: Terraform's account is made an owner of the domain by hand
+# first (docs/manual-setup.md, "Proving the domain to Google"). Settings
+# as the data bucket's; the jobs move to it from that one, which stays
+# until the move is confirmed.
+resource "google_storage_bucket" "cdn" {
+  project  = var.project_id
+  name     = "cdn.${var.domain}"
+  location = upper(local.region_eu)
+
+  uniform_bucket_level_access = true
+  public_access_prevention    = "inherited"
+
+  # Browsers fetch these files from the site's own pages.
+  cors {
+    origin          = ["*"]
+    method          = ["GET", "HEAD"]
+    response_header = ["Content-Type", "Cache-Control", "ETag"]
+    max_age_seconds = 3600
+  }
+}
+
+# As the data bucket: anyone may fetch an object by its name, nobody may
+# list the bucket; the app's service account writes it.
+resource "google_storage_bucket_iam_member" "cdn_public_read" {
+  bucket = google_storage_bucket.cdn.name
+  role   = "roles/storage.legacyObjectReader"
+  member = "allUsers"
+}
+
+resource "google_storage_bucket_iam_member" "cdn_app_objects" {
+  bucket = google_storage_bucket.cdn.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.app.email}"
+}
+
+resource "google_storage_bucket_iam_member" "cdn_app_bucket" {
+  bucket = google_storage_bucket.cdn.name
   role   = "roles/storage.legacyBucketReader"
   member = "serviceAccount:${google_service_account.app.email}"
 }
