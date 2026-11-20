@@ -2,7 +2,8 @@
 # network (a subnet and a NAT gateway per region), the public data
 # bucket (cdn.<domain>), the site's address, the app's service account,
 # the empty Secret Manager entries for its storage key and the site's
-# certificate, and the build project's permission to deploy here. Images are not kept here: they come from the `build`
+# certificate, the build project's permission to deploy here, and the
+# alerts (alerts.tf). Images are not kept here: they come from the `build`
 # project's registry (../../build/pipeline).
 #
 # Applied by CI as Terraform's service account, before any region's
