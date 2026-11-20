@@ -179,3 +179,30 @@ resource "cloudflare_ruleset" "config" {
     }
   }]
 }
+
+# Meta's crawler kept requesting the pages computed per request -- /build
+# and /matchup read a team from the address, so every team card's link is a
+# new page costing the API seconds; /settings/ only sets a cookie and
+# redirects there; /card/ answers hover cards' JSON -- although the site's
+# robots.txt disallows them: 3,968 /build requests on 20 Nov between 19:00
+# and 23:00 UTC, without once fetching robots.txt (ClaudeBot, re-reading it,
+# stopped). Blocked on those paths only, so it can still read every page
+# robots.txt allows.
+resource "cloudflare_ruleset" "firewall" {
+  zone_id = local.zone_id
+  name    = "Firewall"
+  kind    = "zone"
+  phase   = "http_request_firewall_custom"
+
+  rules = [{
+    description = "Meta's crawler on pages robots.txt disallows"
+    expression = join(" ", [
+      "(http.user_agent contains \"meta-externalagent\")",
+      "and (starts_with(http.request.uri.path, \"/build\")",
+      "or starts_with(http.request.uri.path, \"/matchup\")",
+      "or starts_with(http.request.uri.path, \"/settings/\")",
+      "or starts_with(http.request.uri.path, \"/card/\"))",
+    ])
+    action = "block"
+  }]
+}

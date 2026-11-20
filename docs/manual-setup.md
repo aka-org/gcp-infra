@@ -224,7 +224,8 @@ limited to the zone `vgcrival.com` (Zone Resources: Include · Specific zone):
 
 - **`gcp-infra-plan`**, read-only: Zone · Zone · Read, Zone · DNS · Read,
   Zone · Zone Settings · Read, Zone · Config Rules · Read, Zone · Single
-  Redirect · Read (the dashboard's names for the zone's dynamic redirects).
+  Redirect · Read (the dashboard's names for the zone's dynamic redirects),
+  Zone · Zone WAF · Read (the custom firewall rules).
   Stored as the **repository** secret `CLOUDFLARE_API_TOKEN` of
   `aka-org/gcp-infra` (Settings → Secrets and variables → Actions); plans
   read it.
