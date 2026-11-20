@@ -53,6 +53,8 @@ module "project" {
     "compute.googleapis.com",
     "container.googleapis.com",
     "secretmanager.googleapis.com",
+    "monitoring.googleapis.com",
+    "logging.googleapis.com",
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
   ]
@@ -72,6 +74,10 @@ module "project" {
     "roles/compute.securityAdmin",
     "roles/container.admin",
     "roles/secretmanager.admin",
+    # The alert policies (../shared/alerts.tf), and reading the email
+    # channel they send to, made by hand.
+    "roles/monitoring.alertPolicyEditor",
+    "roles/monitoring.notificationChannelViewer",
   ]
 
   # GitHub Actions of this repository authenticate as that service account

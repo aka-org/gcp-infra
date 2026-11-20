@@ -73,6 +73,29 @@ and `pokechamps/build`.
 IP; the DNS endpoint is reached with IAM). Needs `gke-gcloud-auth-plugin`
 from the Google Cloud SDK on `PATH`.
 
+### Production's alerts
+
+The alert policies are Terraform (`pokechamps/prod/shared/alerts.tf`); the
+email channel they send to is made by hand, so the address is in neither
+this repository nor Terraform state. Before the first apply of those
+policies (its plan fails while the channel doesn't exist):
+
+1. Monitoring → Alerting → Edit notification channels → Email → Add new,
+   in the prod project. Email: the address alerts go to (a `+` tag such as
+   `name+vgcrival-alerts@gmail.com` lets a mail filter pick them out by
+   recipient alone); display name **`vgcrival prod alerts`**, exactly: the
+   stage finds the channel by that name (its `alert_channel_name`
+   variable).
+2. The bootstrap stage gives Terraform's service account the two
+   Monitoring roles the policies need (`roles/monitoring.alertPolicyEditor`,
+   `roles/monitoring.notificationChannelViewer`). Bootstrap stages aren't
+   applied by CI: once the pull request adding them is merged, re-run
+   `tools/bootstrap pokechamps/prod` from `main` while the `prod` apply waits
+   for its approval, then approve it.
+
+Every alert email's subject starts with `[vgcrival prod]`. Changing the
+address: edit the channel; no Terraform change.
+
 ### After a release that changes how data is computed
 
 The pipeline deploys code; data the jobs publish is recomputed by running

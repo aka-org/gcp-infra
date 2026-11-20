@@ -11,7 +11,7 @@ Google Cloud infrastructure for aka-org's projects, as Terraform, laid out `<pro
 pokechamps/build/bootstrap/                 the project pokechamps-build-<suffix>: where images are built and kept, for every environment
 pokechamps/build/pipeline/                  the image registry and Cloud Build's service account
 pokechamps/prod/bootstrap/                  the project pokechamps-prod-<suffix>
-pokechamps/prod/shared/                     what production's regions share: network, data bucket, the site's address, the app's service account, the secret entries
+pokechamps/prod/shared/                     what production's regions share: network, data bucket, the site's address, the app's service account, the secret entries, the alerts
 pokechamps/prod/edge/                       the site's domain at Cloudflare: DNS records, TLS and HTTPS settings, rules
 pokechamps/prod/eu/cluster/                 production's GKE Autopilot cluster in europe-west1
 pokechamps/prod/eu/platform/                what runs in that cluster before any app: External Secrets and its Secret Manager store

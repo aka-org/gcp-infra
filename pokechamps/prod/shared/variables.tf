@@ -13,3 +13,9 @@ variable "domain" {
   type        = string
   default     = "vgcrival.com"
 }
+
+variable "alert_channel_name" {
+  description = "Display name of the email notification channel made by hand for production's alerts (docs/manual-setup.md, \"Production's alerts\")"
+  type        = string
+  default     = "vgcrival prod alerts"
+}
