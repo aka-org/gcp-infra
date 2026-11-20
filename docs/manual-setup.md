@@ -88,8 +88,9 @@ policies (its plan fails while the channel doesn't exist):
    variable).
 2. The bootstrap stage gives Terraform's service account the two
    Monitoring roles the policies need (`roles/monitoring.alertPolicyEditor`,
-   `roles/monitoring.notificationChannelViewer`, and
-   `roles/logging.configWriter` for the policy matching log entries; for the billing export
+   `roles/monitoring.notificationChannelViewer`,
+   `roles/logging.configWriter` for the policy matching log entries, and
+   `roles/monitoring.uptimeCheckConfigEditor` for the uptime check; for the billing export
    and budget, `roles/bigquery.dataOwner` and the billing account roles
    below). Bootstrap stages aren't
    applied by CI: once the pull request adding them is merged, re-run
@@ -98,6 +99,41 @@ policies (its plan fails while the channel doesn't exist):
 
 Every alert email's subject starts with `[vgcrival prod]`. Changing the
 address: edit the channel; no Terraform change.
+
+### Email for the domain (Cloudflare Email Routing)
+
+`privacy@vgcrival.com` (the address the site's Privacy page gives) forwards
+to the operator's inbox through Cloudflare Email Routing. Set up by hand,
+not in the `edge` stage: a forwarding rule holds the destination address,
+which would otherwise be in this public repository's plan logs and in
+state. Email → Email Routing, in the zone:
+
+1. Destination addresses: the inbox (verified by the link Cloudflare emails;
+   already verified when it is the Cloudflare account's own address). A `+`
+   tag (`name+vgcrival-privacy@...`) lets a mail filter pick it out.
+2. Routing rules → Custom addresses → `privacy` → Send to an email → that
+   destination. The catch-all stays disabled: mail to any other address on
+   the domain is refused.
+3. Enable, letting Cloudflare add its records: three MX records
+   (`route1/2/3.mx.cloudflare.net`), the SPF TXT record on the apex
+   (`v=spf1 include:_spf.mx.cloudflare.net ~all`) and its DKIM key
+   (`cf2024-1._domainkey`). Cloudflare keeps them locked for Email Routing,
+   and the `edge` stage leaves records it didn't create alone.
+
+Test: mail to `privacy@vgcrival.com` from another account arrives.
+
+### Visit counts (Cloudflare Web Analytics)
+
+The site counts page views with Cloudflare Web Analytics: a script in each
+page reporting a view, without cookies or anything stored on the device.
+The site (`vgcrival.com`) is set up by hand -- it is an account-level
+resource, which this repository's zone-scoped tokens can't reach: Analytics
+& Logs → Web Analytics → the site, on **manual** setup (the automatic
+insertion never appeared in the pages). The app adds the script itself
+where `CF_ANALYTICS_TOKEN` is set (the app repository's
+`deploy/prod/web.yaml`; the token is public, it is in every page's HTML).
+Read in the same dashboard, or through Cloudflare's GraphQL API
+(`rumPageloadEventsAdaptiveGroups`).
 
 ### Billing export
 

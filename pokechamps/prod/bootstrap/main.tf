@@ -83,6 +83,8 @@ module "project" {
     "roles/monitoring.alertPolicyEditor",
     "roles/monitoring.notificationChannelViewer",
     "roles/logging.configWriter",
+    # The uptime check the "Site unreachable" alert reads.
+    "roles/monitoring.uptimeCheckConfigEditor",
     # The billing export's dataset (../shared/billing.tf).
     "roles/bigquery.dataOwner",
   ]
