@@ -78,9 +78,11 @@ module "project" {
     "roles/container.admin",
     "roles/secretmanager.admin",
     # The alert policies (../shared/alerts.tf), and reading the email
-    # channel they send to, made by hand.
+    # channel they send to, made by hand. A policy matching log entries is
+    # also a Logging notification rule (logging.notificationRules.create).
     "roles/monitoring.alertPolicyEditor",
     "roles/monitoring.notificationChannelViewer",
+    "roles/logging.configWriter",
     # The billing export's dataset (../shared/billing.tf).
     "roles/bigquery.dataOwner",
   ]

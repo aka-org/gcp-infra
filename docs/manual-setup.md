@@ -88,7 +88,8 @@ policies (its plan fails while the channel doesn't exist):
    variable).
 2. The bootstrap stage gives Terraform's service account the two
    Monitoring roles the policies need (`roles/monitoring.alertPolicyEditor`,
-   `roles/monitoring.notificationChannelViewer`; for the billing export
+   `roles/monitoring.notificationChannelViewer`, and
+   `roles/logging.configWriter` for the policy matching log entries; for the billing export
    and budget, `roles/bigquery.dataOwner` and the billing account roles
    below). Bootstrap stages aren't
    applied by CI: once the pull request adding them is merged, re-run
