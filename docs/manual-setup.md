@@ -93,6 +93,10 @@ published reports written again: `pokechamps` repository,
 - Its App id and private key live on the workstation that runs `ghpr`
   (`~/.config/aka-org/github-app.env`), never in a repository. Branches
   are pushed with that workstation's SSH key, not the App.
+- The same file's `REVIEWERS=` line names who `ghpr` asks to review each
+  pull request it opens (comma-separated GitHub logins), so the pull
+  requests show under github.com/pulls/review-requested. Set it by hand on
+  the workstation.
 
 ### Organisation and repository settings
 
