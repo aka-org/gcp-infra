@@ -4,6 +4,9 @@
 # added later is covered as it is. An alert sends one email when it opens
 # and one when it closes; nothing repeats while it stays open.
 #
+# Every alert links its runbook (the app repository's docs/runbooks/, as
+# docs/runbooks/README.md here describes); none is added without one.
+#
 # The email channel is made by hand (docs/manual-setup.md, "Production's
 # alerts") so its address is never in this repository or in state; it is
 # found here by its display name.
@@ -14,6 +17,8 @@ data "google_monitoring_notification_channel" "alerts" {
 
 locals {
   app_namespace = "pokechamps"
+  # The app repository's runbooks, one per alert (its docs/runbooks/).
+  runbooks = "https://github.com/aka-org/pokechamps/blob/main/docs/runbooks"
   # Every email's subject starts with this, for the mail filter.
   alert_subject = "[vgcrival prod]"
 }
@@ -64,12 +69,12 @@ resource "google_monitoring_alert_policy" "job_failed" {
     content   = <<-EOT
       The Job $${log.extracted_label.job} in namespace `${local.app_namespace}` ended failed.
 
-      Its pods' logs: `kubectl -n ${local.app_namespace} logs job/$${log.extracted_label.job}`.
-      A sync or teams run that failed is redone by its next scheduled run; a
-      run needed sooner is started by hand (aka-org/gcp-infra
-      docs/manual-setup.md, "After a release that changes how data is
-      computed").
+      What to do: the runbook below.
     EOT
+    links {
+      display_name = "Runbook: a scheduled job failed"
+      url          = "${local.runbooks}/job-failed.md"
+    }
   }
 }
 
@@ -104,8 +109,11 @@ resource "google_monitoring_alert_policy" "no_ready_pod" {
     content   = <<-EOT
       $${metric.label.deployment} has had no available pod for 5 minutes; the site is down or failing.
 
-      `kubectl -n ${local.app_namespace} get pods`, `kubectl -n ${local.app_namespace} describe pod <pod>`,
-      `kubectl -n ${local.app_namespace} top pod`.
+      What to do: the runbook below.
     EOT
+    links {
+      display_name = "Runbook: no ready pod"
+      url          = "${local.runbooks}/no-ready-pod.md"
+    }
   }
 }

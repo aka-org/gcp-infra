@@ -88,7 +88,9 @@ policies (its plan fails while the channel doesn't exist):
    variable).
 2. The bootstrap stage gives Terraform's service account the two
    Monitoring roles the policies need (`roles/monitoring.alertPolicyEditor`,
-   `roles/monitoring.notificationChannelViewer`). Bootstrap stages aren't
+   `roles/monitoring.notificationChannelViewer`; for the billing export
+   and budget, `roles/bigquery.dataOwner` and the billing account roles
+   below). Bootstrap stages aren't
    applied by CI: once the pull request adding them is merged, re-run
    `tools/bootstrap pokechamps/prod` from `main` while the `prod` apply waits
    for its approval, then approve it.
@@ -96,14 +98,25 @@ policies (its plan fails while the channel doesn't exist):
 Every alert email's subject starts with `[vgcrival prod]`. Changing the
 address: edit the channel; no Terraform change.
 
+### Billing export
+
+The dataset `billing_export` (prod project) is Terraform
+(`pokechamps/prod/shared/billing.tf`); switching the export on has no API,
+so it is done by hand once that stage has applied: Billing → Billing export
+→ BigQuery export → **Standard usage cost** → Edit settings → project
+`pokechamps-prod-…`, dataset `billing_export` → Save. Rows arrive within
+hours and cover the whole billing account from about that day on. The
+monthly budget in the same file emails the alerts' channel and the billing
+account's administrators at 50%, 90% and 100% of EUR 100; it replaced a
+budget made by hand, deleted once this one appeared under Billing → Budgets
+& alerts. Granting Terraform's account `roles/billing.costsManager` on the
+billing account (bootstrap) needs a person with that account's billing
+administration: re-run `tools/bootstrap pokechamps/prod`, as for the alerts.
+
 ### After a release that changes how data is computed
 
 The pipeline deploys code; data the jobs publish is recomputed by running
-the jobs (`kubectl --context <prod context> -n pokechamps create job
---from=cronjob/pokechamps-<job> pokechamps-<job>-manual`), one at a time,
-teams before reports. A change to how reports are written also needs the
-published reports written again: `pokechamps` repository,
-`research/platform_check/republish_reports.sh prod [--apply]`.
+the jobs by hand: the app repository's runbook `docs/runbooks/run-a-job.md`.
 
 ## GitHub (organisation `aka-org`)
 
