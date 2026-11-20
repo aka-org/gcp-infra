@@ -55,6 +55,9 @@ module "project" {
     "secretmanager.googleapis.com",
     "monitoring.googleapis.com",
     "logging.googleapis.com",
+    "billingbudgets.googleapis.com",
+    "bigquery.googleapis.com",
+    "bigquerydatatransfer.googleapis.com",
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
   ]
@@ -78,6 +81,8 @@ module "project" {
     # channel they send to, made by hand.
     "roles/monitoring.alertPolicyEditor",
     "roles/monitoring.notificationChannelViewer",
+    # The billing export's dataset (../shared/billing.tf).
+    "roles/bigquery.dataOwner",
   ]
 
   # GitHub Actions of this repository authenticate as that service account
@@ -92,4 +97,20 @@ module "project" {
   # read the project and the state but change nothing.
   gha_sa_refs    = ["refs/heads/main"]
   gha_plan_sa_id = "terraform-plan"
+}
+
+# The budget (../shared/billing.tf) belongs to the billing account, not the
+# project: Terraform's account manages budgets on it, and the plan account
+# reads them so a pull request's plan can compare. Granted here because
+# only a person with the account's billing administration can.
+resource "google_billing_account_iam_member" "terraform_budgets" {
+  billing_account_id = var.billing_account_id
+  role               = "roles/billing.costsManager"
+  member             = "serviceAccount:${module.project.sa_email}"
+}
+
+resource "google_billing_account_iam_member" "plan_budgets" {
+  billing_account_id = var.billing_account_id
+  role               = "roles/billing.viewer"
+  member             = "serviceAccount:${module.project.plan_sa_email}"
 }
