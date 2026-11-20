@@ -19,6 +19,15 @@ KEY=VALUE lines:
 
     APP_ID=123456                    the App's id (its settings page)
     PRIVATE_KEY=/path/to/app.pem     a private key generated for the App
+    REVIEWERS=login[,login...]       optional: GitHub users asked to review
+
+With REVIEWERS set, `open` asks those users to review the pull request it
+opens (and one already open), so it shows in their review queue
+(github.com/pulls/review-requested); a draft is asked too, and GitHub
+notifies them once it is marked ready. Kept in the settings file rather
+than a CODEOWNERS file in each repository: GitHub has no
+organisation-wide CODEOWNERS, and the reviewer is the person running
+this workstation, not a property of each repository.
 
 The App needs these repository permissions on each repository it is
 installed on: Pull requests read and write, Checks read, Metadata read.
@@ -126,12 +135,23 @@ def open_pr(args):
     owner = repo_slug.split("/")[0]
     existing = call("GET", f"/repos/{repo_slug}/pulls?head={owner}:{branch}&state=open", token)
     if existing:
-        print(f"already open: {existing[0]['html_url']}")
-        return
-    body = open(args.body_file).read() if args.body_file else ""
-    pr = call("POST", f"/repos/{repo_slug}/pulls", token,
-              {"title": args.title, "head": branch, "base": default, "body": body, "draft": args.draft})
-    print(pr["html_url"])
+        pr = existing[0]
+        print(f"already open: {pr['html_url']}")
+    else:
+        body = open(args.body_file).read() if args.body_file else ""
+        pr = call("POST", f"/repos/{repo_slug}/pulls", token,
+                  {"title": args.title, "head": branch, "base": default, "body": body, "draft": args.draft})
+        print(pr["html_url"])
+    request_review(repo_slug, pr["number"], token)
+
+
+def request_review(repo_slug, number, token):
+    """Asks REVIEWERS (the settings file; none if unset) to review pull
+    request NUMBER. Asking again someone already asked changes nothing."""
+    reviewers = [r.strip() for r in config().get("REVIEWERS", "").split(",") if r.strip()]
+    if reviewers:
+        call("POST", f"/repos/{repo_slug}/pulls/{number}/requested_reviewers", token, {"reviewers": reviewers})
+        print("review requested from", ", ".join(reviewers))
 
 
 def checks(args):
