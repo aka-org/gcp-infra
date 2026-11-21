@@ -122,6 +122,17 @@ state. Email → Email Routing, in the zone:
 
 Test: mail to `privacy@vgcrival.com` from another account arrives.
 
+Two more addresses, the same way (step 2 for each, the same destination or
+its own `+` tag):
+
+- `feedback@` -- the site's Feedback link offers it beside Discord, for
+  people without a Discord account;
+- `social@` -- the address an account of the site's is created with (the
+  X account, when posting there starts), so no account depends on a
+  personal address.
+
+Test each as above.
+
 ### Visit counts (Cloudflare Web Analytics)
 
 The site counts page views with Cloudflare Web Analytics: a script in each
@@ -154,6 +165,78 @@ administration: re-run `tools/bootstrap pokechamps/prod`, as for the alerts.
 
 The pipeline deploys code; data the jobs publish is recomputed by running
 the jobs by hand: the app repository's runbook `docs/runbooks/run-a-job.md`.
+
+## Discord
+
+The site's community server: announcements posted by the reports job,
+feedback and bug reports, talk about the meta. Owned by the operator's own
+Discord account (any account can own a server; ownership can be
+transferred later). Two-factor authentication on that account first: User
+Settings → My Account → Enable Authenticator App.
+
+### The server
+
+1. Create: the **+** in the server list → Create My Own → For a club or
+   community. Name: the site's name; icon: the site's icon
+   (`web/static/favicon.svg` rendered at 512 px).
+2. Community: Server Settings → Enable Community → follow the steps
+   (verified email required, explicit media scanned for all members, a
+   rules channel and a community updates channel). Community is what
+   allows an announcement channel and the safety settings below.
+3. Channels and categories (Server Settings → or right-click the server):
+   - **Information:** `#rules` (the rules channel chosen in step 2),
+     `#announcements` (Create Channel → Announcement; only admins post),
+     `#about` (what the site is, its links; only admins post);
+   - **Talk:** `#general`, `#meta-talk`, `#teams`;
+   - **Site:** `#feedback`, `#bugs` (pin a message with the template: the
+     page's link, what happened, the device and browser).
+   Delete the default channels the server came with that aren't above.
+4. Roles (Server Settings → Roles): **Admin** (the owner already holds
+   every permission), **Moderator** (Manage Messages, Timeout Members, Kick
+   Members; nobody yet). @everyone: no permission to post in Information.
+5. Safety (Server Settings → Safety Setup): verification level **Medium**
+   (a verified email and registered 5+ minutes) or **Low** (a verified
+   email); AutoMod's spam, mention-spam and commonly-flagged-words rules
+   on (Discord names them "Block Suspected Spam Content", "Block Mention
+   Spam" and "Block Commonly Flagged Words"; its menus get renamed now and
+   then -- the three are the ones to turn on), alerts to a channel only
+   Admin sees (`#mod-log`, private).
+6. Invite: on `#about` → Invite People → Edit invite link → Expire After:
+   **Never**, Max Number of Uses: **No limit**. That link is the one the
+   site's footer and Feedback link use (not a secret; given to the app in
+   its values).
+7. Your nickname here (right-click your name → Edit Server Profile): the
+   name visitors see when you answer, and a role marking you as the
+   developer.
+
+Check: open the invite in a private window logged in as another account (or
+ask someone): it lands on `#rules`, `#announcements` is readable but not
+writable, `#feedback` writable.
+
+### The announcements webhook
+
+The reports job posts each card through a webhook on `#announcements`.
+
+1. `#announcements` → Edit Channel → Integrations → Webhooks → New
+   Webhook. Name: the site's name; avatar: its icon. Copy Webhook URL.
+2. Add the URL as a version of the Secret Manager secret
+   `pokechamps-discord-webhook` (prod project; the empty entry is
+   Terraform's, `pokechamps/prod/shared`), without it touching shell
+   history or a file:
+   `read -rs URL && printf %s "$URL" | gcloud secrets versions add pokechamps-discord-webhook --project <prod project> --data-file=- && unset URL`
+   (paste the URL, Enter).
+3. Never paste the URL anywhere else: anyone holding it can post to the
+   channel.
+
+Check: `gcloud secrets versions list pokechamps-discord-webhook --project
+<prod project>` shows one enabled version. A post through it is checked
+when the app posts its first card (in dry run until the operator switches
+it on).
+
+Replacing it (leaked, or the channel recreated): delete the webhook in the
+channel's Integrations, make a new one, add it as a new version (step 2),
+disable the old version (`gcloud secrets versions disable <n> ...`).
+External Secrets picks up the new value within its refresh interval.
 
 ## GitHub (organisation `aka-org`)
 
