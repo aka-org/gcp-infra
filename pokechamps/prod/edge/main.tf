@@ -137,6 +137,26 @@ resource "cloudflare_zone_setting" "min_tls_version" {
   value      = "1.2"
 }
 
+# HSTS: browsers that have seen the site use HTTPS only, for every host of
+# the zone (cdn. included), and nosniff on everything Cloudflare serves. The
+# app sends its other security headers itself (the pokechamps repo,
+# web/server.js). A long max_age is hard to undo -- a browser keeps it until
+# it runs out -- so it starts at a day (86400 s) and moves to a year
+# (31536000) once a week passes with nothing broken; not preloaded.
+resource "cloudflare_zone_setting" "security_header" {
+  zone_id    = local.zone_id
+  setting_id = "security_header"
+  value = {
+    strict_transport_security = {
+      enabled            = true
+      max_age            = 86400
+      include_subdomains = true
+      nosniff            = true
+      preload            = false
+    }
+  }
+}
+
 # --- rules --------------------------------------------------------------
 
 # www. to the bare domain, path and query kept.
