@@ -206,8 +206,12 @@ resource "cloudflare_ruleset" "config" {
 # redirects there; /card/ answers hover cards' JSON -- although the site's
 # robots.txt disallows them: 3,968 /build requests on 20 Nov between 19:00
 # and 23:00 UTC, without once fetching robots.txt (ClaudeBot, re-reading it,
-# stopped). Blocked on those paths only, so it can still read every page
-# robots.txt allows.
+# stopped). Also on addresses naming a regulation or a season
+# (`regulation=`, `season=M...`), which robots.txt disallows too: each past
+# regulation's or season's pages cost an API pod 30-60 s to load, and the
+# crawlers walking them all made old regulations six times the live one's
+# API requests (20-21 Nov). Blocked on those only, so it can still read
+# every page robots.txt allows.
 resource "cloudflare_ruleset" "firewall" {
   zone_id = local.zone_id
   name    = "Firewall"
@@ -221,7 +225,9 @@ resource "cloudflare_ruleset" "firewall" {
       "and (starts_with(http.request.uri.path, \"/build\")",
       "or starts_with(http.request.uri.path, \"/matchup\")",
       "or starts_with(http.request.uri.path, \"/settings/\")",
-      "or starts_with(http.request.uri.path, \"/card/\"))",
+      "or starts_with(http.request.uri.path, \"/card/\")",
+      "or http.request.uri.query contains \"regulation=\"",
+      "or http.request.uri.query contains \"season=M\")",
     ])
     action = "block"
   }]
