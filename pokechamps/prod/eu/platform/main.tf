@@ -56,9 +56,9 @@ locals {
   eso_principal = "principal://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/${local.eso_namespace}/sa/${local.eso_service_account}"
 }
 
-# The operator may read the app's storage key and the site's TLS
-# certificate, and nothing else in Secret Manager: each further secret is
-# granted here by name.
+# The operator may read the app's storage key, the site's TLS certificate
+# and the Discord webhook, and nothing else in Secret Manager: each further
+# secret is granted here by name.
 resource "google_secret_manager_secret_iam_member" "eso_s3" {
   project   = var.project_id
   secret_id = "pokechamps-s3"
@@ -69,6 +69,13 @@ resource "google_secret_manager_secret_iam_member" "eso_s3" {
 resource "google_secret_manager_secret_iam_member" "eso_web_tls" {
   project   = var.project_id
   secret_id = "pokechamps-web-tls"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = local.eso_principal
+}
+
+resource "google_secret_manager_secret_iam_member" "eso_discord_webhook" {
+  project   = var.project_id
+  secret_id = "pokechamps-discord-webhook"
   role      = "roles/secretmanager.secretAccessor"
   member    = local.eso_principal
 }

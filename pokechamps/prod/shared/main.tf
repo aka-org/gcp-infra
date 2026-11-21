@@ -137,6 +137,24 @@ resource "google_secret_manager_secret" "s3" {
   }
 }
 
+# Holds the Discord webhook the reports job posts through: the URL of the
+# webhook on the server's announcements channel, which is its own secret
+# (anyone holding it can post there). Created empty: the value is added by
+# hand (docs/manual-setup.md, "Discord"), and External Secrets copies it
+# into the cluster for the reports CronJob.
+resource "google_secret_manager_secret" "discord_webhook" {
+  project   = var.project_id
+  secret_id = "pokechamps-discord-webhook"
+
+  replication {
+    user_managed {
+      replicas {
+        location = local.region_eu
+      }
+    }
+  }
+}
+
 # Holds the site's TLS certificate for the load balancer: Cloudflare's
 # Origin certificate for the domain and its private key, as JSON
 # ({"tls.crt": "<PEM>", "tls.key": "<PEM>"}). Created empty: the value is
