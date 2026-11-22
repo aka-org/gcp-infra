@@ -109,6 +109,19 @@ resource "cloudflare_dns_record" "google_verification" {
   comment = "Google Search Console: domain ownership (gcp-infra pokechamps/prod/edge)"
 }
 
+# Makes the domain the handle of the site's Bluesky account (@vgcrival.com):
+# Bluesky reads `_atproto.<domain>` for the account's DID before it lets the
+# account take the domain as its handle (docs/manual-setup.md, "Bluesky").
+resource "cloudflare_dns_record" "bluesky_handle" {
+  count   = var.bluesky_did == "" ? 0 : 1
+  zone_id = local.zone_id
+  name    = "_atproto.${var.domain}"
+  type    = "TXT"
+  content = "\"did=${var.bluesky_did}\""
+  ttl     = 3600
+  comment = "Bluesky: the domain as the account's handle (gcp-infra pokechamps/prod/edge)"
+}
+
 # --- TLS and HTTPS ------------------------------------------------------
 #
 # A zone setting always exists at Cloudflare: Terraform sets its value and

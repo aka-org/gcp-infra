@@ -265,11 +265,12 @@ Check: `gcloud secrets versions list pokechamps-bluesky-app-password
 session check answers with the account's handle. Posts go out once the
 operator switches `ANNOUNCE_BLUESKY` from `dry` to `on`.
 
-Later, optional: the domain as the handle (`vgcrival.com`): Bluesky →
-Settings → Account → Handle → "I have my own domain" shows a TXT record
-(`_atproto.<domain>`, `did=did:plc:...`); add it in `pokechamps/prod/edge`
-(Terraform, not by hand), then confirm in Bluesky and change
-`BLUESKY_HANDLE`.
+The domain as the handle (`@vgcrival.com`): Bluesky → Settings → Account →
+Handle → "I have my own domain" → DNS shows a TXT record
+(`_atproto.<domain>`, `did=did:plc:...`). Its DID is `pokechamps/prod/edge`'s
+`bluesky_did` (Terraform, not by hand); once applied, press Verify in
+Bluesky. The pokechamps repo's `BLUESKY_HANDLE` names the account by its
+DID, which a handle change never breaks.
 
 Replacing the app password (leaked or revoked): add a new one (step 3), add
 it as a new version (step 4), delete the old one in Bluesky and disable its

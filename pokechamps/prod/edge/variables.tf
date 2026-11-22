@@ -9,6 +9,12 @@ variable "domain" {
   default     = "vgcrival.com"
 }
 
+variable "bluesky_did" {
+  description = "The site's Bluesky account (its DID: did:plc:...), named in the _atproto TXT record that makes the domain its handle: public, as every DNS record and the account's own profile are. Empty: no record"
+  type        = string
+  default     = "did:plc:4zz4piqfz7ehb6nacpnma2ty"
+}
+
 variable "google_site_verification" {
   description = "The TXT value Google Search Console gives for proving the domain is ours (google-site-verification=...): public, as every DNS record is. Empty: no record"
   type        = string
