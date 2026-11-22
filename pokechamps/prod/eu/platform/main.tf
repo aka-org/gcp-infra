@@ -80,6 +80,13 @@ resource "google_secret_manager_secret_iam_member" "eso_discord_webhook" {
   member    = local.eso_principal
 }
 
+resource "google_secret_manager_secret_iam_member" "eso_bluesky_app_password" {
+  project   = var.project_id
+  secret_id = "pokechamps-bluesky-app-password"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = local.eso_principal
+}
+
 resource "helm_release" "external_secrets" {
   name             = "external-secrets"
   namespace        = local.eso_namespace
