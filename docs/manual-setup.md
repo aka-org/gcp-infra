@@ -238,6 +238,43 @@ channel's Integrations, make a new one, add it as a new version (step 2),
 disable the old version (`gcloud secrets versions disable <n> ...`).
 External Secrets picks up the new value within its refresh interval.
 
+## Bluesky
+
+The site's account, which the reports job posts the announcements to (the
+pokechamps repo's `reports/bluesky.py`; its runbook
+`docs/runbooks/discord-posts.md`, "Bluesky").
+
+1. Sign up at bsky.app with `social@` (the domain's address for the site's
+   accounts, above); handle `vgcrival.bsky.social` (the pokechamps repo's
+   `deploy/prod/reports.yaml` names it as `BLUESKY_HANDLE`; change both
+   together). Profile: the site's name, its icon as the avatar, the site
+   card as the banner, the site's address as the website.
+2. Settings → Privacy and security → Two-factor authentication: on (an
+   email code).
+3. Settings → Privacy and security → App passwords → Add: name it after
+   the reports job; no access to direct messages. Copy the password it
+   shows once.
+4. Add it as a version of the Secret Manager secret
+   `pokechamps-bluesky-app-password` (prod project; the empty entry is
+   Terraform's, `pokechamps/prod/shared`), without it touching shell
+   history or a file:
+   `read -rs P && printf %s "$P" | gcloud secrets versions add pokechamps-bluesky-app-password --project <prod project> --data-file=- && unset P`
+
+Check: `gcloud secrets versions list pokechamps-bluesky-app-password
+--project <prod project>` shows one enabled version; the runbook's
+session check answers with the account's handle. Posts go out once the
+operator switches `ANNOUNCE_BLUESKY` from `dry` to `on`.
+
+Later, optional: the domain as the handle (`vgcrival.com`): Bluesky →
+Settings → Account → Handle → "I have my own domain" shows a TXT record
+(`_atproto.<domain>`, `did=did:plc:...`); add it in `pokechamps/prod/edge`
+(Terraform, not by hand), then confirm in Bluesky and change
+`BLUESKY_HANDLE`.
+
+Replacing the app password (leaked or revoked): add a new one (step 3), add
+it as a new version (step 4), delete the old one in Bluesky and disable its
+version (`gcloud secrets versions disable <n> ...`).
+
 ## GitHub (organisation `aka-org`)
 
 ### The automation App
