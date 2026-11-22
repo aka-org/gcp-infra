@@ -155,6 +155,25 @@ resource "google_secret_manager_secret" "discord_webhook" {
   }
 }
 
+# Holds an app password of the site's Bluesky account, which the reports job
+# posts the same announcements with (pokechamps reports/bluesky.py): a
+# password for this use only, revocable on its own -- never the account's
+# password. Created empty: the value is added by hand (docs/manual-setup.md,
+# "Bluesky"), and External Secrets copies it into the cluster for the
+# reports CronJob.
+resource "google_secret_manager_secret" "bluesky_app_password" {
+  project   = var.project_id
+  secret_id = "pokechamps-bluesky-app-password"
+
+  replication {
+    user_managed {
+      replicas {
+        location = local.region_eu
+      }
+    }
+  }
+}
+
 # Holds the site's TLS certificate for the load balancer: Cloudflare's
 # Origin certificate for the domain and its private key, as JSON
 # ({"tls.crt": "<PEM>", "tls.key": "<PEM>"}). Created empty: the value is
