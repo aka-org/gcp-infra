@@ -14,7 +14,11 @@ convention and the template (When, Impact, Check, Fix, Verify, Related;
 steps as commands or scripts, a script that changes anything dry-run by
 default with `--apply`) are the app repository's `docs/runbooks/README.md`.
 
-None written here yet. To write when each is next needed, from
+| Runbook | When |
+|---|---|
+| [platform-upkeep.md](platform-upkeep.md) | The quarterly look at the Terraform CLI, providers, modules, GKE, the External Secrets chart and the actions; a GKE minor upgrade announced |
+
+To write when each is next needed, from
 `../manual-setup.md`: rotating the Cloudflare API tokens (made 2026-11-19
 for a year), renewing the Origin certificate, rotating the data bucket's
 HMAC key.
