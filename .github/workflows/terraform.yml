@@ -14,13 +14,20 @@ name: Terraform
 # a pull request that touches no Terraform); the `changes` job then decides
 # which projects have anything to do. A project's jobs run when a file
 # under its folder changed, or one every project reads: these workflows,
-# .github/ci-env.sh, any bootstrap's ci.env. Otherwise they are skipped --
-# a skipped plan still passes its required check, and a skipped apply asks
-# no reviewer. A manual run (workflow_dispatch) does every project.
+# .github/ci-env.sh, .github/terraform-stages.sh, any bootstrap's ci.env.
+# Otherwise they are skipped -- a skipped plan still passes its required
+# check, and a skipped apply asks no reviewer. A manual run
+# (workflow_dispatch) does every project.
+#
+# Within a project, only the stages with a change run, with the stages
+# after them in their chain (terraform-stages.sh); a change to a file every
+# project reads runs every stage.
 #
 # Bootstrap stages are not here: a person applies them (tools/bootstrap).
-# Adding a stage is adding it to its project's list below, in the order
-# it is applied.
+# Adding a stage is adding it to its project's `stages` below: in the
+# chain of the stages it reads (by a data source, or a resource's name),
+# after them; or as a chain of its own, after "|", when it reads none.
+# Stages in different chains are planned and applied side by side.
 on:
   pull_request:
   push:
@@ -36,6 +43,9 @@ jobs:
     outputs:
       build: ${{ steps.diff.outputs.build }}
       prod: ${{ steps.diff.outputs.prod }}
+      # Whether every stage runs, and the commit compared against.
+      every: ${{ steps.diff.outputs.every }}
+      base: ${{ steps.diff.outputs.base }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,15 +58,18 @@ jobs:
         run: |
           set -euo pipefail
           projects="build prod"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
           # a manual run, a new branch, or a base this checkout lacks: every project
           if [ "$EVENT" = workflow_dispatch ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             for p in $projects; do echo "$p=true" >> "$GITHUB_OUTPUT"; done
+            echo "every=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           files=$(git diff --name-only "$BASE" "$HEAD")
           echo "$files"
           every=false
-          if echo "$files" | grep -qE '^\.github/workflows/terraform(-project)?\.yml$|^\.github/ci-env\.sh$|^pokechamps/[^/]+/bootstrap/ci\.env$'; then every=true; fi
+          if echo "$files" | grep -qE '^\.github/workflows/terraform(-project)?\.yml$|^\.github/(ci-env|terraform-stages)\.sh$|^pokechamps/[^/]+/bootstrap/ci\.env$'; then every=true; fi
+          echo "every=$every" >> "$GITHUB_OUTPUT"
           for p in $projects; do
             if [ "$every" = true ] || echo "$files" | grep -q "^pokechamps/$p/"; then echo "$p=true"; else echo "$p=false"; fi >> "$GITHUB_OUTPUT"
           done
@@ -83,6 +96,8 @@ jobs:
       stages: pipeline
       mode: plan
       changed: ${{ needs.changes.outputs.build == 'true' }}
+      every: ${{ needs.changes.outputs.every == 'true' }}
+      base: ${{ needs.changes.outputs.base }}
 
   plan-prod:
     needs: changes
@@ -93,13 +108,17 @@ jobs:
     uses: ./.github/workflows/terraform-project.yml
     with:
       project: pokechamps/prod
-      stages: shared edge eu/cluster eu/platform
+      # edge reads the load balancer's address shared reserves; eu/platform
+      # reads the cluster eu/cluster makes.
+      stages: shared edge | eu/cluster eu/platform
       # Planning a Helm release reads the release's record, a Kubernetes
       # Secret, and the read-only plan account is not given access to
       # Secrets in the cluster.
       validate_only: eu/platform
       mode: plan
       changed: ${{ needs.changes.outputs.prod == 'true' }}
+      every: ${{ needs.changes.outputs.every == 'true' }}
+      base: ${{ needs.changes.outputs.base }}
     # CLOUDFLARE_API_TOKEN for the edge stage: the repository's read-only
     # token here.
     secrets: inherit
@@ -119,6 +138,8 @@ jobs:
       mode: apply
       environment: build
       changed: ${{ needs.changes.outputs.build == 'true' }}
+      every: ${{ needs.changes.outputs.every == 'true' }}
+      base: ${{ needs.changes.outputs.base }}
 
   # Runs after the build project's apply, or without it when nothing in
   # build changed: a job whose `needs` was skipped is skipped too unless
@@ -133,10 +154,12 @@ jobs:
     uses: ./.github/workflows/terraform-project.yml
     with:
       project: pokechamps/prod
-      stages: shared edge eu/cluster eu/platform
+      stages: shared edge | eu/cluster eu/platform
       mode: apply
       environment: prod
       changed: ${{ needs.changes.outputs.prod == 'true' }}
+      every: ${{ needs.changes.outputs.every == 'true' }}
+      base: ${{ needs.changes.outputs.base }}
     # CLOUDFLARE_API_TOKEN for the edge stage: the `prod` environment's
     # editing token, which takes the place of the repository's read-only one
     # of the same name in a job run in that environment.

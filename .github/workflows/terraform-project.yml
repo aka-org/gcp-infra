@@ -1,7 +1,8 @@
 name: Terraform, one project
 
 # Plans or applies the stages of one Google Cloud project, called by
-# terraform.yml once per project. With `changed` false the job is skipped
+# terraform.yml once per project: the stages with a change, independent
+# chains of them side by side (.github/terraform-stages.sh). With `changed` false the job is skipped
 # rather than not called: a skipped job reports its check (the ruleset's
 # required "plan-<project> / plan"), and an apply skipped this way never
 # asks its environment's reviewer.
@@ -19,7 +20,7 @@ on:
         type: string
         required: true
       stages:
-        description: Its stages, space-separated, in the order they are applied (paths under the project's folder)
+        description: Its stages (paths under the project's folder) as chains separated by "|", each chain in the order it is applied; stages in different chains read nothing of each other's
         type: string
         required: true
       validate_only:
@@ -38,6 +39,14 @@ on:
         description: Whether anything this project reads changed (terraform.yml's `changes`); false skips the job, which still reports its check
         type: boolean
         default: true
+      every:
+        description: Run every stage, not only the ones with a change
+        type: boolean
+        default: true
+      base:
+        description: The commit the change is compared against, to find which stages changed
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -54,7 +63,10 @@ jobs:
       contents: read
       id-token: write
     steps:
+      # The history, to find which stages changed since `base`.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Read the projects' identifiers
         id: ci
         run: .github/ci-env.sh "${{ inputs.project }}"
@@ -72,45 +84,21 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
         if: steps.ci.outputs.bootstrapped == 'true'
       # The plan stays in this run's log; it is not posted on the pull
-      # request. -lock=false: the plan account can't write the state's lock.
-      # A stage with no state yet (a new one) is validated only, initialised
-      # without its backend: Terraform's GCS backend writes a lock to create
-      # a missing state (in `init`, and even with -lock=false), which the
-      # plan account can't; its first plan is the apply job's, in the run
-      # for main, which creates the state.
-      - name: Plan every stage
+      # request. A stage with no state yet (a new one) is validated only:
+      # its first plan is the apply job's, in the run for main.
+      - name: Plan the stages with a change
         if: steps.ci.outputs.bootstrapped == 'true'
         env:
-          STAGES: ${{ inputs.stages }}
-          VALIDATE_ONLY: ${{ inputs.validate_only }}
           PROJECT: ${{ inputs.project }}
+          CHAINS: ${{ inputs.stages }}
+          VALIDATE_ONLY: ${{ inputs.validate_only }}
+          EVERY: ${{ inputs.every }}
+          BASE: ${{ inputs.base }}
+          HEAD: ${{ github.sha }}
           # A stage managing Cloudflare reads it (a project without one
           # leaves the secret unset): read-only for a plan.
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          for stage in $STAGES; do
-            echo "::group::$PROJECT/$stage"
-            # only a missing state skips the plan; any other error fails the job
-            if ! out=$(gcloud storage objects describe "gs://$TF_STATE_BUCKET/$stage/default.tfstate" 2>&1 > /dev/null); then
-              if echo "$out" | grep -qiE "not found|404|no urls matched"; then
-                terraform -chdir="$PROJECT/$stage" init -input=false -backend=false
-                terraform -chdir="$PROJECT/$stage" validate
-                echo "validated only: $stage has no state yet; its first plan is shown by the apply job, in the run for main"
-                echo "::endgroup::"
-                continue
-              fi
-              echo "$out" >&2
-              exit 1
-            fi
-            terraform -chdir="$PROJECT/$stage" init -input=false
-            terraform -chdir="$PROJECT/$stage" validate
-            case " $VALIDATE_ONLY " in
-              *" $stage "*) echo "validated only: its plan is shown by the apply job, in the run for main" ;;
-              *) terraform -chdir="$PROJECT/$stage" plan -input=false -lock=false ;;
-            esac
-            echo "::endgroup::"
-          done
+        run: .github/terraform-stages.sh plan
 
   apply:
     if: inputs.mode == 'apply' && inputs.changed
@@ -122,7 +110,10 @@ jobs:
       contents: read
       id-token: write
     steps:
+      # The history, to find which stages changed since `base`.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Read the projects' identifiers
         id: ci
         run: .github/ci-env.sh "${{ inputs.project }}"
@@ -141,18 +132,14 @@ jobs:
         if: steps.ci.outputs.bootstrapped == 'true'
         with:
           install_components: gke-gcloud-auth-plugin
-      - name: Apply every stage, in order
+      - name: Apply the stages with a change, each chain in order
         if: steps.ci.outputs.bootstrapped == 'true'
         env:
-          STAGES: ${{ inputs.stages }}
           PROJECT: ${{ inputs.project }}
+          CHAINS: ${{ inputs.stages }}
+          EVERY: ${{ inputs.every }}
+          BASE: ${{ inputs.base }}
+          HEAD: ${{ github.sha }}
           # The environment's editing token, for a stage managing Cloudflare.
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          for stage in $STAGES; do
-            echo "::group::$PROJECT/$stage"
-            terraform -chdir="$PROJECT/$stage" init -input=false
-            terraform -chdir="$PROJECT/$stage" apply -input=false -auto-approve
-            echo "::endgroup::"
-          done
+        run: .github/terraform-stages.sh apply
