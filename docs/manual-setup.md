@@ -70,8 +70,12 @@ and `pokechamps/build`.
 
 `gcloud container clusters get-credentials prod-eu --location europe-west1
 --dns-endpoint --project <prod project>` (the control plane has no public
-IP; the DNS endpoint is reached with IAM). Needs `gke-gcloud-auth-plugin`
-from the Google Cloud SDK on `PATH`.
+IP; the DNS endpoint is reached with IAM), then `kubectl config
+rename-context gke_<prod project>_europe-west1_prod-eu prod-eu`: the app
+repository's runbooks name the context `prod-eu`. Needs
+`gke-gcloud-auth-plugin` from the Google Cloud SDK on `PATH`. The rest of
+the workstation (tools, credentials, a check of each) is the app
+repository's `docs/development.md` and `ops/doctor.sh`.
 
 ### Production's alerts
 
