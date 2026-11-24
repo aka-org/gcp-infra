@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${HANDBOOK_DIR:-$HOME/repos/handbook}/tools/commit-check.py\"; [ ! -f \"$f\" ] || python3 \"$f\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
