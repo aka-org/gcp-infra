@@ -243,5 +243,26 @@ resource "cloudflare_ruleset" "firewall" {
       "or http.request.uri.query contains \"season=M\")",
     ])
     action = "block"
+    }, {
+    # A scraper walked a Pokemon page's build filters (`?with=ability:...|
+    # item:...`, any combination) from a pool of residential addresses:
+    # about 4,500 page requests in 13 minutes on 26 Nov 2026, at most 2 from
+    # any one address, which ran both web pods out of CPU until both failed
+    # their health check (44 requests answered 502). A per-address rate
+    # limit can't see that, so filtered pages ask for Cloudflare's managed
+    # challenge (passed by a browser, mostly without a click). The site's
+    # own filter taps fetch `/__data.json` (SvelteKit's client navigation)
+    # and pass untouched, so a visitor filtering on the page never sees it;
+    # one opening a shared filtered link may. Known bots (Cloudflare's
+    # verified list) pass; robots.txt already asks them to skip these
+    # addresses.
+    description = "Filtered Pokemon pages: challenge non-browsers"
+    expression = join(" ", [
+      "(http.host eq \"${var.domain}\")",
+      "and (http.request.uri.query contains \"with=\")",
+      "and not ends_with(http.request.uri.path, \"/__data.json\")",
+      "and not cf.client.bot",
+    ])
+    action = "managed_challenge"
   }]
 }
