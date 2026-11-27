@@ -26,6 +26,9 @@ locals {
   # loadbalancing.googleapis.com/https/request_count).
   lb_requests     = "loadbalancing_googleapis_com:https_request_count{monitored_resource=\"https_lb_rule\"}"
   lb_requests_5xx = "loadbalancing_googleapis_com:https_request_count{monitored_resource=\"https_lb_rule\",response_code_class=\"500\"}"
+  # A checker region's last /healthz result, failed (the uptime check's
+  # monitoring.googleapis.com/uptime_check/check_passed, one series a region).
+  uptime_failing = "monitoring_googleapis_com:uptime_check_check_passed{monitored_resource=\"uptime_url\",check_id=\"${google_monitoring_uptime_check_config.site.uptime_check_id}\"} == 0"
 }
 
 # A Job ends failed when its pod fails on its own code (backoffLimit 0),
@@ -172,8 +175,7 @@ resource "google_monitoring_alert_policy" "server_errors" {
 # regions. Catches what Google's own load-balancer metrics can't see,
 # because the requests never arrive -- an expired certificate, DNS, a
 # Cloudflare-side failure (its 52x errors: the 525s of 19 Nov, while the
-# certificate was set up). It alerts when more than one region fails for 5
-# minutes, so one checker's network trouble doesn't.
+# certificate was set up).
 resource "google_monitoring_uptime_check_config" "site" {
   display_name = "vgcrival.com /healthz"
   timeout      = "10s"
@@ -200,27 +202,30 @@ resource "google_monitoring_uptime_check_config" "site" {
   }
 }
 
+# Alerts in the minute the site fails as a visitor sees it: 3 or more of
+# the 6 checker regions fail at once, or any fails while the load balancer
+# answered a 5xx in the last 2 minutes. Google's US checkers fail on their
+# own while the site answers (23-24 Nov 2026: single minutes, up to 2
+# regions at once, no 5xx), which a region count alone mailed as an outage;
+# both real outages had 5xx in the failing minute, one with a single region
+# failing (27 Nov). Every failure, false or real, lasted one minute, so the
+# rule holds for no duration. Replayed on 20-27 Nov 2026 it fires on the two
+# outages only (26 Nov 06:21, 27 Nov 08:43 UTC); pokechamps' scheduled check
+# P6 reads the same rule (docs/runbooks/scheduled-checks.md, "Limits").
 resource "google_monitoring_alert_policy" "site_unreachable" {
   display_name = "${local.alert_subject} Site unreachable"
   combiner     = "OR"
 
   conditions {
-    display_name = "vgcrival.com/healthz failing from more than one region"
-    condition_threshold {
-      filter = join(" AND ", [
-        "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\"",
-        "resource.type=\"uptime_url\"",
-        "metric.label.check_id=\"${google_monitoring_uptime_check_config.site.uptime_check_id}\"",
+    display_name = "vgcrival.com/healthz failing from 3+ regions, or with load-balancer 5xx"
+    condition_prometheus_query_language {
+      query = join(" ", [
+        "(count(${local.uptime_failing}) >= 3)",
+        "or (count(${local.uptime_failing}) >= 1",
+        "and on() sum(increase(${local.lb_requests_5xx}[2m])) > 0)",
       ])
-      comparison      = "COMPARISON_GT"
-      threshold_value = 1
-      duration        = "300s"
-      aggregations {
-        alignment_period     = "1200s"
-        per_series_aligner   = "ALIGN_NEXT_OLDER"
-        cross_series_reducer = "REDUCE_COUNT_FALSE"
-        group_by_fields      = ["resource.label.host"]
-      }
+      duration            = "0s"
+      evaluation_interval = "60s"
     }
   }
 
@@ -234,7 +239,7 @@ resource "google_monitoring_alert_policy" "site_unreachable" {
     subject   = "${local.alert_subject} Site unreachable"
     mime_type = "text/markdown"
     content   = <<-EOT
-      https://${var.domain}/healthz has failed from more than one region for 5 minutes: visitors can't reach the site.
+      https://${var.domain}/healthz failed from 3 or more regions at once, or from any while the load balancer answered errors: visitors can't reach the site.
 
       What to do: the runbook below.
     EOT
