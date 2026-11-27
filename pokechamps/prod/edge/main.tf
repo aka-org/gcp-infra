@@ -264,5 +264,29 @@ resource "cloudflare_ruleset" "firewall" {
       "and not cf.client.bot",
     ])
     action = "managed_challenge"
+    }, {
+    # The same scraper's pattern moved to the tool pages, which read a team
+    # from the address and cost the API seconds per new one: on 27 Nov 2026
+    # 08:30-08:55 UTC, API requests rose from 175 to 6,724 per 10 minutes
+    # (/build 3,643, /matchup 841, /calc 744), spread over many countries
+    # and 30 rotating browser user agents (Brazil 2,365, US 1,442,
+    # Bangladesh 812 requests), until both API pods failed their readiness
+    # probe and then both web pods (about 1,600 answers 5xx). A page load of
+    # /build, /tools/calc or /matchup with a query asks for the managed
+    # challenge. The site's own moves between teams (links, the picker, the
+    # import form's redirect) are client navigations fetching `/__data.json`
+    # and pass untouched; the import form's POST passes (GET and HEAD only);
+    # a shared team link opened in a new tab may show the challenge once,
+    # then Cloudflare's clearance cookie lets that browser through. Known
+    # bots pass, as on the rule above (robots.txt disallows these pages).
+    description = "Tool pages with a query: challenge non-browsers"
+    expression = join(" ", [
+      "(http.host eq \"${var.domain}\")",
+      "and (http.request.uri.path in {\"/build\" \"/tools/calc\" \"/matchup\"})",
+      "and (http.request.uri.query ne \"\")",
+      "and (http.request.method in {\"GET\" \"HEAD\"})",
+      "and not cf.client.bot",
+    ])
+    action = "managed_challenge"
   }]
 }
