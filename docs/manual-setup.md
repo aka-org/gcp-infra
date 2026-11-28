@@ -285,7 +285,7 @@ version (`gcloud secrets versions disable <n> ...`).
 ### The automation App
 
 - **`aka-org-automation`**, a GitHub App owned by the organisation, opens
-  pull requests for `tools/ghpr`. Repository permissions: Pull requests
+  pull requests for the handbook's `tools/ghpr`. Repository permissions: Pull requests
   read and write, Checks read, Contents read, Metadata read. Installed on
   the organisation's repositories that receive pull requests from it.
 - Its App id and private key live on the workstation that runs `ghpr`
@@ -349,7 +349,7 @@ repository, rulesets):
 4. **The automation App's access**, so `ghpr` can open pull requests there:
    organisation Settings → GitHub Apps → `aka-org-automation` → Configure →
    Repository access → add it. Check from the workstation:
-   `tools/ghpr token <checkout>` succeeds.
+   the handbook's `tools/ghpr token <checkout>` succeeds.
 5. **Dependabot and Actions** need nothing: the organisation's
    configuration and allowed list reach a new repository by themselves.
    Version updates, when the repository pins dependencies, are its own
