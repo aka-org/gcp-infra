@@ -282,32 +282,10 @@ version (`gcloud secrets versions disable <n> ...`).
 
 ## GitHub (organisation `aka-org`)
 
-### The automation App
+The organisation's setup (the automation App, merging and rulesets,
+Dependabot and Actions, the steps for a new repository) is the handbook's
+`github.md`. What is this repository's own:
 
-- **`aka-org-automation`**, a GitHub App owned by the organisation, opens
-  pull requests for `tools/ghpr`. Repository permissions: Pull requests
-  read and write, Checks read, Contents read, Metadata read. Installed on
-  the organisation's repositories that receive pull requests from it.
-- Its App id and private key live on the workstation that runs `ghpr`
-  (`~/.config/aka-org/github-app.env`), never in a repository. Branches
-  are pushed with that workstation's SSH key, not the App.
-- The same file's `REVIEWERS=` line names who `ghpr` asks to review each
-  pull request it opens (comma-separated GitHub logins), so the pull
-  requests show under github.com/pulls/review-requested. Set it by hand on
-  the workstation.
-
-### Organisation and repository settings
-
-- **Merging: rebase only** (merge commits and squash off), on every
-  repository. Stacked pull requests don't survive a rebase merge: each pull
-  request starts from `main`.
-- **Rulesets on `main`**: no force push, no deletion, changes through a pull
-  request, on every public repository. The private ones (`pokechamps`,
-  `handbook`) have no ruleset: GitHub's Free plan offers none for a private
-  repository (the API answers 403). One is created on each when the
-  organisation moves to Team; until then `main` there is unprotected (the
-  app repository's backlog, "`main` has no branch protection"). The organisation and each
-  repository were set up by the steps under "A new repository".
 - **GitHub environments** gate this repository's Terraform applies: each
   project's apply job runs in an environment whose required reviewer approves
   it (`.github/workflows/terraform.yml`). Only a project something changed
@@ -316,48 +294,6 @@ version (`gcloud secrets versions disable <n> ...`).
   plan`, `plan-prod / plan`. The Terraform workflow runs on every pull
   request so they always report: a project nothing changed in reports its
   plan as skipped, which passes.
-- **Dependabot**: security updates on, through the organisation's code
-  security configuration (`aka-org-org-config-1`, applied to every new
-  repository by itself); Advanced Security features are unavailable to
-  private repositories on the Free plan.
-- **Actions**: the organisation allows GitHub's own actions, verified
-  creators' and `terraform-linters/setup-tflint`; every repository
-  inherits the list.
-- **The repositories**: `gcp-infra`, the `terraform-google-*` modules
-  (public); `pokechamps` (the app) and `handbook` (the shared working
-  practice every session loads, `~/.claude/CLAUDE.md`), private.
-
-### A new repository
-
-What a person does, in the browser or with `gh` as an organisation owner
-(a session's token can't change the App's access or, on a private
-repository, rulesets):
-
-1. **Create it**: `gh repo create aka-org/<name> --private|--public
-   --add-readme -d "<what it is>"` (a first commit on `main`, so pull
-   requests have a base).
-2. **Merging**, rebase only, branches deleted on merge:
-   `gh api -X PATCH repos/aka-org/<name> -F allow_merge_commit=false
-   -F allow_squash_merge=false -F allow_rebase_merge=true
-   -F delete_branch_on_merge=true`.
-3. **The `main` ruleset** (no deletion, no force push, linear history,
-   changes through a pull request, the organisation's admins able to bypass
-   only through a pull request): on a public repository, Settings → Rules →
-   Rulesets → New branch ruleset, or copied from `gcp-infra`'s with `gh api`
-   (`repos/aka-org/gcp-infra/rulesets`, its required checks left out); a
-   private one gets none on the Free plan (above).
-4. **The automation App's access**, so `ghpr` can open pull requests there:
-   organisation Settings → GitHub Apps → `aka-org-automation` → Configure →
-   Repository access → add it. Check from the workstation:
-   `tools/ghpr token <checkout>` succeeds.
-5. **Dependabot and Actions** need nothing: the organisation's
-   configuration and allowed list reach a new repository by themselves.
-   Version updates, when the repository pins dependencies, are its own
-   `.github/dependabot.yml`.
-6. **Its clone** at `~/repos/<name>` on the workstation, kept on `main`;
-   work in worktrees beside it.
-- **Tags**: a release tag (`vX.Y.Z`) is created by the shared
-  `changelog-release.yml` workflow from the changelog, not by hand.
 
 ### Terraform registry
 

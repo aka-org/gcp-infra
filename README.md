@@ -34,7 +34,6 @@ An environment is named by its role (`prod`, `dev`) and lives in a Google Cloud 
 | Script | What it does |
 |---|---|
 | `tools/bootstrap` | Applies an environment's bootstrap stage from a workstation and moves its state into the bucket it created (`tools/bootstrap pokechamps/prod`). |
-| `tools/ghpr` | Pushes the current work branch of a checkout and opens its pull request as the `aka-org-automation` GitHub App (`ghpr open DIR --title ...`), asking the users in its settings' `REVIEWERS` to review it, or lists the branch's check runs (`ghpr checks DIR`). Never pushes a default branch, merges, tags or force-pushes. Its docstring covers the App's settings file and permissions. |
 
 ## Shared workflows
 
